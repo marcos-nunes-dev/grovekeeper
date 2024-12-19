@@ -4,6 +4,7 @@ export interface RegearItem {
   value: number
   formattedValue: string
   quality: number
+  count: number
   isReliablePrice: boolean
   priceHistory: Array<{
     timestamp: string

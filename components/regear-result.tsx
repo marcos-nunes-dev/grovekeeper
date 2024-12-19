@@ -40,11 +40,12 @@ function ValueIndicator({ value, isReliable }: { value: number, isReliable: bool
   )
 }
 
-function PriceDisplay({ value, formattedValue, isReliable, priceHistory }: { 
+function PriceDisplay({ value, formattedValue, isReliable, priceHistory, count }: { 
   value: number
   formattedValue: string
   isReliable: boolean
   priceHistory?: Array<{ timestamp: string; price: number }>
+  count: number
 }) {
   if (value === 0) {
     return (
@@ -57,7 +58,12 @@ function PriceDisplay({ value, formattedValue, isReliable, priceHistory }: {
 
   return (
     <div className="flex items-center gap-1">
-      <span className="text-zinc-300">{formattedValue} silver</span>
+      <span className="text-zinc-300">
+        {formattedValue} silver
+        {count > 1 && (
+          <span className="text-sm text-zinc-500 ml-1">each</span>
+        )}
+      </span>
       {!isReliable && priceHistory && (
         <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>
@@ -85,7 +91,7 @@ function PriceDisplay({ value, formattedValue, isReliable, priceHistory }: {
 }
 
 function ItemTable({ items, title }: { items: RegearItem[], title: string }) {
-  const total = items.reduce((sum, item) => sum + item.value, 0)
+  const total = items.reduce((sum, item) => sum + (item.value * item.count), 0)
 
   return (
     <div className="rounded-lg border border-zinc-800/50 overflow-hidden">
@@ -123,7 +129,9 @@ function ItemTable({ items, title }: { items: RegearItem[], title: string }) {
                         className="w-full h-full object-contain"
                       />
                     </div>
-                    <span className="font-medium">{item.name}</span>
+                    <span className="font-medium">
+                      {item.count > 1 ? `${item.count}x ` : ''}{item.name}
+                    </span>
                   </div>
                 </td>
                 <td className="py-2 px-4">
@@ -133,6 +141,7 @@ function ItemTable({ items, title }: { items: RegearItem[], title: string }) {
                       formattedValue={item.formattedValue} 
                       isReliable={item.isReliablePrice}
                       priceHistory={item.priceHistory}
+                      count={item.count}
                     />
                     <ValueIndicator value={item.value} isReliable={item.isReliablePrice} />
                   </div>

@@ -1,64 +1,6 @@
 import { RegearResult, KillboardResponse, PricesResponse } from '@/lib/types/regear'
 import { formatPrice, isPriceReliable } from '@/lib/utils/price'
-
-const ITEM_NAME_OVERRIDES: Record<string, string> = {
-  // Armor pieces
-  'HEAD': 'Hood',
-  'ARMOR': 'Jacket',
-  'SHOES': 'Boots',
-  // Weapons
-  'MAIN_SPEAR': 'Spear',
-  'MAIN_AXE': 'Axe',
-  'MAIN_SWORD': 'Sword',
-  'MAIN_QUARTERSTAFF': 'Quarterstaff',
-  'MAIN_DAGGER': 'Dagger',
-  'MAIN_HAMMER': 'Hammer',
-  'MAIN_MACE': 'Mace',
-  'MAIN_CROSSBOW': 'Crossbow',
-  'MAIN_BOW': 'Bow',
-  'MAIN_FIRE': 'Fire Staff',
-  'MAIN_ARCANE': 'Arcane Staff',
-  'MAIN_HOLY': 'Holy Staff',
-  'MAIN_NATURE': 'Nature Staff',
-  'MAIN_FROST': 'Frost Staff',
-  'MAIN_CURSE': 'Curse Staff',
-  // Off-hands
-  'OFF_SHIELD': 'Shield',
-  'OFF_TORCH': 'Torch',
-  'OFF_HORN': 'Horn',
-  'OFF_TOME': 'Tome',
-  // Accessories
-  'CAPE': 'Cape',
-  'BAG': 'Bag',
-  // Consumables
-  'POTION_HEAL': 'Healing Potion',
-  'POTION_ENERGY': 'Energy Potion',
-  'MEAL': 'Food'
-}
-
-function formatItemName(itemId: string): string {
-  // Extract tier and item type
-  const [tierPart, ...nameParts] = itemId.split('_')
-  const tier = tierPart.replace('T', '')
-  
-  // Find the base item type
-  let itemName = ''
-  for (const [key, value] of Object.entries(ITEM_NAME_OVERRIDES)) {
-    if (nameParts.join('_').includes(key)) {
-      itemName = value
-      break
-    }
-  }
-
-  // If no override found, use the default formatting
-  if (!itemName) {
-    itemName = nameParts
-      .map(word => word.charAt(0) + word.slice(1).toLowerCase())
-      .join(' ')
-  }
-
-  return `Tier ${tier} ${itemName}`
-}
+import { getFriendlyItemName } from '@/lib/utils/item-names'
 
 export async function getKillboardData(killboardUrl: string): Promise<RegearResult> {
   // Extract kill ID from URL
@@ -76,10 +18,11 @@ export async function getKillboardData(killboardUrl: string): Promise<RegearResu
     .filter(([, item]) => item !== null)
     .map(([, item]) => ({
       id: item!.Type,
-      name: formatItemName(item!.Type),
+      name: getFriendlyItemName(item!.Type),
       value: 0,
       formattedValue: '???',
       quality: item!.Quality,
+      count: item!.Count,
       isReliablePrice: false,
       priceHistory: [] as Array<{ timestamp: string; price: number }>
     }))
@@ -89,10 +32,11 @@ export async function getKillboardData(killboardUrl: string): Promise<RegearResu
     .filter((item): item is NonNullable<typeof item> => item !== null)
     .map(item => ({
       id: item.Type,
-      name: formatItemName(item.Type),
+      name: getFriendlyItemName(item.Type),
       value: 0,
       formattedValue: '???',
       quality: item.Quality,
+      count: item.Count,
       isReliablePrice: false,
       priceHistory: [] as Array<{ timestamp: string; price: number }>
     }))
@@ -134,7 +78,7 @@ export async function getKillboardData(killboardUrl: string): Promise<RegearResu
   })
 
   // Calculate total
-  const totalValue = [...equippedItems, ...bagItems].reduce((sum, item) => sum + item.value, 0)
+  const totalValue = [...equippedItems, ...bagItems].reduce((sum, item) => sum + (item.value * item.count), 0)
 
   return {
     equipped: equippedItems,
