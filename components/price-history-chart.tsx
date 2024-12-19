@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { formatPrice } from '@/lib/utils/price'
 
@@ -10,17 +11,23 @@ interface PriceHistoryChartProps {
 
 type TooltipFormatter = (value: number, name: string) => [string, string]
 
-export function PriceHistoryChart({ data }: PriceHistoryChartProps) {
-  const formattedData = data.map(point => ({
-    ...point,
-    timestamp: new Date(point.timestamp).toLocaleDateString(undefined, {
-      month: 'numeric',
-      day: 'numeric',
-      hour: 'numeric'
-    })
-  }))
+export const PriceHistoryChart = memo(function PriceHistoryChart({ data }: PriceHistoryChartProps) {
+  const formattedData = useMemo(() => 
+    data.map(point => ({
+      ...point,
+      timestamp: new Date(point.timestamp).toLocaleDateString(undefined, {
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric'
+      })
+    })),
+    [data]
+  )
 
-  const tooltipFormatter: TooltipFormatter = (value) => [formatPrice(value), 'Price']
+  const tooltipFormatter: TooltipFormatter = useMemo(
+    () => (value) => [formatPrice(value), 'Price'],
+    []
+  )
 
   return (
     <div className="w-[300px] h-[120px] mt-2">
@@ -42,7 +49,7 @@ export function PriceHistoryChart({ data }: PriceHistoryChartProps) {
           <YAxis 
             tick={{ fill: '#71717A', fontSize: 10 }} 
             tickLine={{ stroke: '#27272A' }}
-            tickFormatter={(value) => formatPrice(value)}
+            tickFormatter={formatPrice}
             width={50}
           />
           <Tooltip
@@ -69,4 +76,4 @@ export function PriceHistoryChart({ data }: PriceHistoryChartProps) {
       </ResponsiveContainer>
     </div>
   )
-} 
+}) 
