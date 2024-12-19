@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { formatPrice } from '@/lib/utils/price'
 
 interface HistoricalDataPoint {
   timestamp: string
@@ -17,6 +18,10 @@ interface ProcessedPrice {
   avg_price: number
   min_price: number
   max_price: number
+  data: Array<{
+    timestamp: string
+    avg_price: number
+  }>
   formatted: {
     avg: string
     min: string
@@ -26,18 +31,6 @@ interface ProcessedPrice {
 
 interface ProcessedPrices {
   [key: string]: ProcessedPrice | null
-}
-
-function formatPrice(price: number): string {
-  if (price >= 1_000_000_000) {
-    return (price / 1_000_000_000).toFixed(1) + 'B'
-  } else if (price >= 1_000_000) {
-    return (price / 1_000_000).toFixed(1) + 'M'
-  } else if (price >= 1_000) {
-    return (price / 1_000).toFixed(0) + 'K'
-  } else {
-    return price.toFixed(0)
-  }
 }
 
 async function fetchPricesForSubset(items: string[]): Promise<PriceHistoryResponse[]> {
@@ -107,6 +100,10 @@ export async function GET(request: Request) {
           avg_price: avgPrice,
           min_price: minPrice,
           max_price: maxPrice,
+          data: price.data.map(point => ({
+            timestamp: point.timestamp,
+            avg_price: point.avg_price
+          })),
           formatted: {
             avg: formatPrice(avgPrice),
             min: formatPrice(minPrice),

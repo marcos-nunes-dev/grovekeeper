@@ -5,6 +5,10 @@ export interface RegearItem {
   formattedValue: string
   quality: number
   isReliablePrice: boolean
+  priceHistory: Array<{
+    timestamp: string
+    price: number
+  }>
 }
 
 export interface RegearResult {
@@ -39,6 +43,10 @@ export interface PriceData {
   min_price: number
   max_price: number
   data_points?: number
+  data: Array<{
+    timestamp: string
+    avg_price: number
+  }>
   formatted: {
     avg: string
     min: string

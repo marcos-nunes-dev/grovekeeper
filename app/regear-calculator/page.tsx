@@ -3,11 +3,23 @@
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search } from 'lucide-react'
+import { Search, Frown } from 'lucide-react'
 import RegearResult from '@/components/regear-result'
 import PageHero from '@/components/page-hero'
 import { getKillboardData } from '@/lib/services/regear'
 import type { RegearResult as RegearResultType } from '@/lib/types/regear'
+
+function ErrorDisplay({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center p-8 space-y-4 text-center">
+      <Frown className="w-16 h-16 text-zinc-400" />
+      <div className="space-y-2">
+        <h3 className="text-lg font-medium text-zinc-300">Something went wrong</h3>
+        <p className="text-sm text-zinc-400 max-w-md">{message}</p>
+      </div>
+    </div>
+  )
+}
 
 export default function RegearCalculator() {
   const [url, setUrl] = useState('')
@@ -23,13 +35,13 @@ export default function RegearCalculator() {
 
     setLoading(true)
     setError(null)
+    setResult(null)
     
     try {
       const data = await getKillboardData(url)
       setResult(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to calculate regear cost')
-      setResult(null)
     } finally {
       setLoading(false)
     }
@@ -66,17 +78,15 @@ export default function RegearCalculator() {
           >
             {loading ? 'Calculating...' : 'Calculate Regear'}
           </Button>
-
-          {error && (
-            <div className="text-red-400 text-sm mt-2">
-              {error}
-            </div>
-          )}
         </div>
       </PageHero>
 
       <div className="container mx-auto px-4">
-        {result && <RegearResult result={result} />}
+        {error ? (
+          <ErrorDisplay message={error} />
+        ) : result ? (
+          <RegearResult result={result} />
+        ) : null}
       </div>
     </div>
   )
