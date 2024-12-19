@@ -1,0 +1,38 @@
+export function formatPrice(price: number): string {
+  if (price === 0) return '???'
+  if (price >= 1_000_000_000) {
+    return (price / 1_000_000_000).toFixed(1) + 'B'
+  } else if (price >= 1_000_000) {
+    return (price / 1_000_000).toFixed(1) + 'M'
+  } else if (price >= 1_000) {
+    return (price / 1_000).toFixed(0) + 'K'
+  } else {
+    return price.toFixed(0)
+  }
+}
+
+export function isPriceReliable(priceData: {
+  avg_price: number
+  min_price: number
+  max_price: number
+  data_points?: number
+}): boolean {
+  if (!priceData.avg_price) return false
+  
+  // Check if we have enough price variation data
+  const priceRange = priceData.max_price - priceData.min_price
+  const avgPrice = priceData.avg_price
+  const variationPercentage = (priceRange / avgPrice) * 100
+
+  // If we have data_points info, check if we have enough samples
+  if (typeof priceData.data_points === 'number' && priceData.data_points < 5) {
+    return false
+  }
+
+  // If price variation is too high (more than 50%), consider it unreliable
+  if (variationPercentage > 50) {
+    return false
+  }
+
+  return true
+} 
