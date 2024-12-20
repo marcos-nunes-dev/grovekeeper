@@ -157,17 +157,19 @@ function ItemTable({ items, title }: { items: RegearItem[], title: string }) {
 
 export default function RegearResult({ result }: RegearResultProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ItemTable items={result.equipped} title="Equipped Items" />
         <ItemTable items={result.bag} title="Items in Bag" />
       </div>
-      <div className="rounded-lg border border-zinc-800/50 p-4 bg-[#1C2128]">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Total Regear Cost</h2>
-          <span className="text-[#00E6B4] font-semibold">
-            {result.total.formatted} silver
-          </span>
+      <div className="fixed bottom-0 left-0 right-0 bg-[#1C2128] border-t border-zinc-800/50">
+        <div className="container mx-auto px-4">
+          <div className="py-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Total Regear Cost</h2>
+            <span className="text-[#00E6B4] font-semibold">
+              {result.total.formatted} silver
+            </span>
+          </div>
         </div>
       </div>
     </div>
