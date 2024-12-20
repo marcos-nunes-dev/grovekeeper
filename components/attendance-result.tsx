@@ -6,6 +6,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import Image from 'next/image'
 
 interface PlayerAttendance {
   name: string
@@ -118,9 +119,11 @@ export default function AttendanceResult({ result }: AttendanceResultProps) {
                           key={index}
                           className="w-12 h-12 rounded bg-[#1C2128] border border-zinc-800/50 p-1"
                         >
-                          <img
+                          <Image
                             src={`https://render.albiononline.com/v1/item/${weaponId}.png`}
                             alt="Weapon"
+                            width={40}
+                            height={40}
                             className="w-full h-full object-contain"
                           />
                         </div>

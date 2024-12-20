@@ -6,46 +6,18 @@ import { Plus } from 'lucide-react'
 import CompositionHeader from './composition-header'
 import ClassSection from './class-section'
 import BuildCreator from './build-creator'
-
-interface ClassSection {
-  name: string
-  builds: Build[]
-}
-
-interface Build {
-  id: string
-  name: string
-  equipment: {
-    mainHand?: string
-    offHand?: string
-    head?: string
-    chest?: string
-    shoes?: string
-    cape?: string
-    food?: string
-    potion?: string
-    mount?: string
-  }
-  skills: {
-    q?: string
-    w?: string
-    e?: string
-    r?: string
-    passive?: string
-  }
-  instructions: string
-}
+import type { ClassSection as ClassSectionType, Build } from '@/lib/types/composition'
 
 export default function CompositionBuilder() {
   const [compositionName, setCompositionName] = useState('')
   const [purpose, setPurpose] = useState('')
   const [description, setDescription] = useState('')
   const [tags, setTags] = useState<string[]>([])
-  const [classSections, setClassSections] = useState<ClassSection[]>([])
+  const [classSections, setClassSections] = useState<ClassSectionType[]>([])
   const [expandedClass, setExpandedClass] = useState<string | null>(null)
 
   const addClassSection = () => {
-    const newClass: ClassSection = {
+    const newClass: ClassSectionType = {
       name: 'New Class',
       builds: []
     }

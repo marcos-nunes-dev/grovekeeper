@@ -12,17 +12,17 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import AttendanceResult from '@/components/attendance-result'
+import AttendanceResult, { type AttendanceResult as AttendanceResultType } from '@/components/attendance-result'
 import PageHero from '@/components/page-hero'
 
 export default function Attendance() {
   const [guildName, setGuildName] = useState('')
   const [playerNames, setPlayerNames] = useState('')
-  const [result, setResult] = useState<AttendanceResult | null>(null)
+  const [result, setResult] = useState<AttendanceResultType | null>(null)
 
   const handleCalculate = () => {
     // Mock response with enhanced data
-    const mockResult: AttendanceResult = {
+    const mockResult: AttendanceResultType = {
       players: [
         {
           rank: 1,

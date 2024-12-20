@@ -40,7 +40,6 @@ function getActiveFiltersSummary(filters: RegearFilters): string[] {
 
   // Equipment slots
   const defaultSlots = new Set(DEFAULT_FILTERS.regearSlots)
-  const currentSlots = new Set(filters.regearSlots)
   
   if (filters.regearSlots.length < DEFAULT_FILTERS.regearSlots.length) {
     const slots = filters.regearSlots.map(slot => EQUIPMENT_SLOTS[slot]).join(', ')

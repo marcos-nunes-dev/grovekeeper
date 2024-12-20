@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { AlbionItem } from '@/lib/albion-items'
 import Image from 'next/image'
 import ItemSelectionModal from './item-selection-modal'
+import type { Build } from '@/lib/types/composition'
 
 interface BuildConfigurationProps {
   build: Build
@@ -56,7 +57,8 @@ export default function BuildConfiguration({
 
   const handleItemSelect = (item: AlbionItem) => {
     if (selectedSlot) {
-      const updatedEquipment = { ...build.equipment, [selectedSlot]: item.id }
+      const updatedEquipment = { ...build.equipment }
+      updatedEquipment[selectedSlot as keyof typeof build.equipment] = item.id
       updateBuild({ ...build, equipment: updatedEquipment })
       setIsModalOpen(false)
     }
@@ -103,9 +105,9 @@ export default function BuildConfiguration({
                     )}
                     onClick={() => slot.name && handleTileClick(slot.name)}
                   >
-                    {build.equipment[slot.name] && (
+                    {slot.name && build.equipment[slot.name as keyof typeof build.equipment] && (
                       <Image
-                        src={`https://render.albiononline.com/v1/item/${build.equipment[slot.name]}.png`}
+                        src={`https://render.albiononline.com/v1/item/${build.equipment[slot.name as keyof typeof build.equipment]}.png`}
                         alt={slot.name}
                         width={48}
                         height={48}
@@ -131,7 +133,7 @@ export default function BuildConfiguration({
               {['mainHand', 'head', 'chest', 'shoes'].map((slot) => (
                 <SelectedItem
                   key={slot}
-                  name={build.equipment[slot] || ''}
+                  name={build.equipment[slot as keyof typeof build.equipment] || ''}
                   skills={slot === 'mainHand' ? 3 : 1}
                   hasPassive={true}
                 />

@@ -31,7 +31,10 @@ interface ItemNameDictionary {
   [key: string]: ItemNameData
 }
 
-const localizedNames = itemNames as ItemNameDictionary
+const localizedNames = (itemNames as ItemNameData[]).reduce((acc, item) => {
+  acc[item.UniqueName] = item;
+  return acc;
+}, {} as ItemNameDictionary);
 
 export function getFriendlyItemName(itemId: string): string {
   // Remove tier prefix and any enchantment suffix for matching

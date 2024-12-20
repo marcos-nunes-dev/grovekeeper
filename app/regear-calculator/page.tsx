@@ -163,7 +163,7 @@ export default function RegearCalculator() {
                   aria-describedby="url-format-hint"
                 />
                 {mode === 'group' && (
-                  <Tooltip open={tooltipOpen} modal>
+                  <Tooltip open={tooltipOpen}>
                     <TooltipTrigger asChild onClick={() => setTooltipOpen(!tooltipOpen)}>
                       <button 
                         type="button" 
@@ -206,7 +206,7 @@ export default function RegearCalculator() {
                           </svg>
                           <span className="sr-only">Close</span>
                         </button>
-                        <p>Copy and paste the list of URLs. Don't worry with random/dirty text, we gonna handle just albion URLs and ignore the rest</p>
+                        <p>Copy and paste the list of URLs. Don&apos;t worry with random/dirty text, we gonna handle just albion URLs and ignore the rest</p>
                         <div className="h-px bg-zinc-800/50 my-4" />
                         <Collapsible open={proTipOpen} onOpenChange={setProTipOpen}>
                           <CollapsibleTrigger 
@@ -220,7 +220,7 @@ export default function RegearCalculator() {
                             <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${proTipOpen ? 'rotate-180' : ''}`} />
                           </CollapsibleTrigger>
                           <CollapsibleContent className="pt-3 text-sm text-zinc-400 pl-6">
-                            Create a regear channel in your guild's Discord. When players die, ask them to post their death URL along with the screenshot (Discord's default behavior). This way, you can simply copy everything - screenshots, usernames, links, etc. - and paste it here. We'll automatically extract and process just the death links.
+                            Create a regear channel in your guild&apos;s Discord. When players die, ask them to post their death URL along with the screenshot (Discord&apos;s default behavior). This way, you can simply copy everything - screenshots, usernames, links, etc. - and paste it here. We&apos;ll automatically extract and process just the death links.
                           </CollapsibleContent>
                         </Collapsible>
                       </div>

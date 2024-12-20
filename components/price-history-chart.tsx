@@ -11,6 +11,8 @@ interface PriceHistoryChartProps {
 
 type TooltipFormatter = (value: number, name: string) => [string, string]
 
+const formatPriceForAxis = (value: number) => formatPrice(value, false)
+
 export const PriceHistoryChart = memo(function PriceHistoryChart({ data }: PriceHistoryChartProps) {
   const formattedData = useMemo(() => 
     data.map(point => ({
@@ -49,7 +51,7 @@ export const PriceHistoryChart = memo(function PriceHistoryChart({ data }: Price
           <YAxis 
             tick={{ fill: '#71717A', fontSize: 10 }} 
             tickLine={{ stroke: '#27272A' }}
-            tickFormatter={formatPrice}
+            tickFormatter={formatPriceForAxis}
             width={50}
           />
           <Tooltip

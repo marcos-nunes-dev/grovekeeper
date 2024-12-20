@@ -7,14 +7,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { CLASSES } from '@/lib/constants'
+import type { ClassSection as ClassSectionType } from '@/lib/types/composition'
 
 interface ClassSectionProps {
-  classSection: ClassSection
+  classSection: ClassSectionType
   classIndex: number
   expandedClass: string | null
   setExpandedClass: (className: string | null) => void
-  classSections: ClassSection[]
-  setClassSections: (sections: ClassSection[]) => void
+  classSections: ClassSectionType[]
+  setClassSections: (sections: ClassSectionType[]) => void
   children: React.ReactNode
 }
 

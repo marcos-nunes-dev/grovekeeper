@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import RegearResult from '@/components/regear-result'
-import GroupRegearFilters from '@/components/group-regear-filters'
-import { CARRYING_MOUNT_IDS, EQUIPMENT_SLOTS } from '@/lib/types/regear'
-import type { GroupRegearResult, RegearFilters, EquipmentSlot } from '@/lib/types/regear'
 import { formatPrice } from '@/lib/utils/price'
 import { ChevronDown, MapPin } from 'lucide-react'
+import type { GroupRegearResult, RegearFilters, EquipmentSlot } from '@/lib/types/regear'
+import { CARRYING_MOUNT_IDS } from '@/lib/types/regear'
+import Image from 'next/image'
+import RegearResult from '@/components/regear-result'
+import GroupRegearFilters from '@/components/group-regear-filters'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -205,11 +206,15 @@ export default function GroupRegearResultDisplay({ result }: GroupRegearResultPr
                 <button className="flex items-center gap-2 text-[#00E6B4] font-semibold">
                   <div className="flex items-center gap-2">
                     {priceDisplay !== 'silver' && (
-                      <img
-                        src={`https://render.albiononline.com/v1/item/${priceDisplay}.png`}
-                        alt={getPriceDisplayText()}
-                        className="w-6 h-6 object-contain"
-                      />
+                      <div className="w-10 h-10 bg-zinc-900 rounded border border-zinc-800">
+                        <Image
+                          src={`https://render.albiononline.com/v1/item/${priceDisplay}.png`}
+                          alt={getPriceDisplayText()}
+                          width={40}
+                          height={40}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
                     )}
                     <span>{formatPrice(displayValue)} {priceDisplay === 'silver' ? 'silver' : getPriceDisplayText()}</span>
                   </div>
@@ -221,25 +226,31 @@ export default function GroupRegearResultDisplay({ result }: GroupRegearResultPr
                   Silver
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setPriceDisplay('T4_SKILLBOOK_STANDARD')} className="gap-2">
-                  <img
+                  <Image
                     src="https://render.albiononline.com/v1/item/T4_SKILLBOOK_STANDARD.png"
                     alt="Tome of Insight"
+                    width={24}
+                    height={24}
                     className="w-6 h-6 object-contain"
                   />
                   Tomes of Insight
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setPriceDisplay('TREASURE_DECORATIVE_RARITY1')} className="gap-2">
-                  <img
+                  <Image
                     src="https://render.albiononline.com/v1/item/TREASURE_DECORATIVE_RARITY1.png"
                     alt="Toy"
+                    width={24}
+                    height={24}
                     className="w-6 h-6 object-contain"
                   />
                   Toys
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setPriceDisplay('UNIQUE_GVGTOKEN_GENERIC')} className="gap-2">
-                  <img
+                  <Image
                     src="https://render.albiononline.com/v1/item/UNIQUE_GVGTOKEN_GENERIC.png"
                     alt="Siphoned Energy"
+                    width={24}
+                    height={24}
                     className="w-6 h-6 object-contain"
                   />
                   Siphoned Energy
