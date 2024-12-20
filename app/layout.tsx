@@ -4,6 +4,8 @@ import TopBar from '@/components/top-bar'
 import Navigation from '@/components/navigation'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Providers } from './providers'
+import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export const metadata = {
   title: 'Grovekeeper - Albion Online Composition Builder',
@@ -27,6 +29,8 @@ export default function RootLayout({
             </main>
           </TooltipProvider>
         </Providers>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )
