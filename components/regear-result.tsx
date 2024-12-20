@@ -20,8 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { PriceHistoryChart } from './price-history-chart'
-import { useEquivalentPrices, useRegearStats, type PriceEquivalent } from '@/lib/hooks/useRegearQueries'
-import { AnimatedCounter } from './ui/animated-counter'
+import { useEquivalentPrices, type PriceEquivalent } from '@/lib/hooks/useRegearQueries'
 
 interface RegearResultProps {
   result: RegearResult
@@ -205,7 +204,6 @@ export default function RegearResult({ result }: RegearResultProps) {
   const [ignoredItems, setIgnoredItems] = useState<Set<string>>(new Set())
   const [priceDisplay, setPriceDisplay] = useState<'silver' | PriceEquivalent>('silver')
   const { data: equivalentPrices } = useEquivalentPrices()
-  const stats = useRegearStats()
 
   // Calculate total value excluding ignored items
   const calculatedTotal = useMemo(() => {
@@ -351,16 +349,6 @@ export default function RegearResult({ result }: RegearResultProps) {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <span>Deaths analyzed:</span>
-          <AnimatedCounter value={stats.data?.deathsAnalyzed ?? 0} showZeroAsQuestionMarks={false} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span>Silver calculated:</span>
-          <AnimatedCounter value={stats.data?.silverCalculated ?? 0} showZeroAsQuestionMarks={false} />
         </div>
       </div>
     </div>
