@@ -7,6 +7,7 @@ import { Search, Frown } from 'lucide-react'
 import RegearResult from '@/components/regear-result'
 import PageHero from '@/components/page-hero'
 import { useRegearCalculator } from '@/lib/hooks/useRegearCalculator'
+import { AnimatedCounter } from '@/components/animated-counter'
 
 const ErrorDisplay = memo(function ErrorDisplay({ message }: { message: string }) {
   return (
@@ -28,6 +29,7 @@ export default function RegearCalculator() {
     result,
     loading,
     error,
+    stats,
     setUrl,
     calculate
   } = useRegearCalculator()
@@ -38,8 +40,14 @@ export default function RegearCalculator() {
         title="Regear Calculator"
         subtitle="Calculate the cost of regearing your lost equipment"
         stats={[
-          { value: '10M+', label: 'Deaths Analyzed' },
-          { value: '500B+', label: 'Silver Calculated' }
+          { 
+            value: <AnimatedCounter value={stats?.deathsAnalyzed || 0} />, 
+            label: 'Deaths Analyzed' 
+          },
+          { 
+            value: <AnimatedCounter value={stats?.silverCalculated || 0} />, 
+            label: 'Silver Calculated' 
+          }
         ]}
       >
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-zinc-800 p-6 space-y-4">

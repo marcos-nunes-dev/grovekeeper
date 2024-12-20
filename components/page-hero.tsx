@@ -3,7 +3,7 @@ interface PageHeroProps {
   subtitle?: string
   children: React.ReactNode
   stats?: Array<{
-    value: string
+    value: React.ReactNode
     label: string
   }>
 }

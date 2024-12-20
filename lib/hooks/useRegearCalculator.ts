@@ -1,13 +1,19 @@
-import { useCallback, useReducer } from 'react'
+import { useCallback, useReducer, useEffect } from 'react'
 import { getKillboardData } from '@/lib/services/regear'
 import { KillboardError, getErrorMessage } from '@/lib/utils/errors'
 import type { RegearResult } from '@/lib/types/regear'
+
+type Stats = {
+  deathsAnalyzed: number
+  silverCalculated: number
+}
 
 type State = {
   url: string
   result: RegearResult | null
   loading: boolean
   error: string | null
+  stats: Stats | null
 }
 
 type Action =
@@ -15,13 +21,15 @@ type Action =
   | { type: 'START_CALCULATION' }
   | { type: 'CALCULATION_SUCCESS'; payload: RegearResult }
   | { type: 'CALCULATION_ERROR'; payload: unknown }
+  | { type: 'SET_STATS'; payload: Stats }
   | { type: 'RESET' }
 
 const initialState: State = {
   url: '',
   result: null,
   loading: false,
-  error: null
+  error: null,
+  stats: null
 }
 
 function reducer(state: State, action: Action): State {
@@ -39,6 +47,8 @@ function reducer(state: State, action: Action): State {
         error: getErrorMessage(action.payload),
         result: null 
       }
+    case 'SET_STATS':
+      return { ...state, stats: action.payload }
     case 'RESET':
       return initialState
     default:
@@ -48,6 +58,21 @@ function reducer(state: State, action: Action): State {
 
 export function useRegearCalculator() {
   const [state, dispatch] = useReducer(reducer, initialState)
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await fetch('/api/regear-stats')
+      if (!response.ok) throw new Error('Failed to fetch stats')
+      const stats = await response.json()
+      dispatch({ type: 'SET_STATS', payload: stats })
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
 
   const setUrl = useCallback((url: string) => {
     dispatch({ type: 'SET_URL', payload: url })
@@ -67,10 +92,24 @@ export function useRegearCalculator() {
     try {
       const data = await getKillboardData(state.url)
       dispatch({ type: 'CALCULATION_SUCCESS', payload: data })
+
+      // Save the calculation to the database
+      const killboardId = state.url.split('/').pop() || ''
+      await fetch('/api/regear-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          killboardId,
+          totalSilver: Math.floor(data.total.value)
+        })
+      })
+
+      // Refresh stats after calculation
+      fetchStats()
     } catch (error) {
       dispatch({ type: 'CALCULATION_ERROR', payload: error })
     }
-  }, [state.url])
+  }, [state.url, fetchStats])
 
   const reset = useCallback(() => {
     dispatch({ type: 'RESET' })

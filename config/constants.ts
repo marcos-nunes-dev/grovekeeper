@@ -48,3 +48,5 @@ export const ITEM_NAME_OVERRIDES: Record<string, string> = {
   'POTION_ENERGY': 'Energy Potion',
   'MEAL': 'Food'
 } as const 
+
+export const SUPABASE_P = "xogte5-Zyvcoh-karsez"
