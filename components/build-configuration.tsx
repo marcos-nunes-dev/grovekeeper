@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AlbionItem } from '@/lib/albion-items'
+import Image from 'next/image'
 import ItemSelectionModal from './item-selection-modal'
 
 interface BuildConfigurationProps {
@@ -103,9 +104,11 @@ export default function BuildConfiguration({
                     onClick={() => slot.name && handleTileClick(slot.name)}
                   >
                     {build.equipment[slot.name] && (
-                      <img
+                      <Image
                         src={`https://render.albiononline.com/v1/item/${build.equipment[slot.name]}.png`}
                         alt={slot.name}
+                        width={48}
+                        height={48}
                         className="w-full h-full object-contain"
                       />
                     )}
@@ -173,9 +176,11 @@ function SelectedItem({ name, skills, hasPassive }: SelectedItemProps) {
     <div className="flex items-center gap-4">
       <div className="w-12 h-12 bg-[#1C2128] rounded border border-zinc-800/50 flex-shrink-0">
         {name && (
-          <img
+          <Image
             src={`https://render.albiononline.com/v1/item/${name}.png`}
             alt={name}
+            width={48}
+            height={48}
             className="w-full h-full object-contain"
           />
         )}

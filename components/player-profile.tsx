@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Share2, Sword, Users, Coins, History } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import Image from 'next/image'
 
 interface PlayerProfileProps {
   playerName: string
@@ -162,9 +163,11 @@ export default function PlayerProfile({ playerName, region }: PlayerProfileProps
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="relative w-16 h-16 rounded-full bg-[#1C2128] border border-zinc-800/50 overflow-hidden">
-                <img
+                <Image
                   src={`https://render.albiononline.com/v1/player/${playerName}/avatar?quality=0`}
                   alt={playerName}
+                  width={64}
+                  height={64}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -316,9 +319,11 @@ export default function PlayerProfile({ playerName, region }: PlayerProfileProps
                 <div className="flex gap-2">
                   {Object.entries(activity.equipment).map(([slot, item], i) => (
                     <div key={i} className="w-10 h-10 bg-zinc-900 rounded border border-zinc-800">
-                      <img
+                      <Image
                         src={`https://render.albiononline.com/v1/item/${item}.png`}
                         alt={slot}
+                        width={40}
+                        height={40}
                         className="w-full h-full object-contain"
                       />
                     </div>

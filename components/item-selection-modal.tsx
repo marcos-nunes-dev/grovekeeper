@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { AlbionItem, albionItems } from '@/lib/albion-items'
+import Image from 'next/image'
 
 interface ItemSelectionModalProps {
   isOpen: boolean
@@ -49,9 +50,11 @@ export default function ItemSelectionModal({
                 className="flex flex-col items-center cursor-pointer hover:bg-zinc-800 rounded p-2"
                 onClick={() => onSelect(item)}
               >
-                <img
+                <Image
                   src={`https://render.albiononline.com/v1/item/${item.itemType}.png`}
                   alt={item.name}
+                  width={48}
+                  height={48}
                   className="w-12 h-12 object-contain mb-2"
                 />
                 <span className="text-xs text-center">{item.name}</span>

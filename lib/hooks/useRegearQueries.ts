@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { RegearResult, KillboardResponse } from '@/lib/types/regear'
+import type { RegearResult } from '@/lib/types/regear'
 import { KillboardError } from '@/lib/utils/errors'
 import { getKillboardData } from '@/lib/services/regear'
 
@@ -25,41 +25,15 @@ interface EquivalentPrices {
 
 // Fetch statistics
 export function useRegearStats() {
-  const queryClient = useQueryClient()
-
   return useQuery<Stats>({
     queryKey: ['regearStats'],
     queryFn: async () => {
-      try {
-        const response = await fetch('/api/regear-stats')
-        if (!response.ok) throw new Error('Failed to fetch statistics')
-        const data = await response.json()
-        return {
-          deathsAnalyzed: data.deathsAnalyzed ?? 0,
-          silverCalculated: data.silverCalculated ?? 0
-        }
-      } catch (error) {
-        console.error('Error fetching stats:', error)
-        throw error
+      const response = await fetch('/api/regear-stats')
+      if (!response.ok) {
+        throw new Error('Failed to fetch statistics')
       }
-    },
-    // Only refetch on mount and when explicitly invalidated
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    // Cache for 5 minutes
-    staleTime: 5 * 60 * 1000,
-    // Keep in cache for 30 minutes
-    gcTime: 30 * 60 * 1000,
-    // Initialize with zeros to avoid loading state
-    placeholderData: {
-      deathsAnalyzed: 0,
-      silverCalculated: 0
-    },
-    // Transform any null or undefined values to 0
-    select: (data) => ({
-      deathsAnalyzed: data.deathsAnalyzed ?? 0,
-      silverCalculated: data.silverCalculated ?? 0
-    })
+      return response.json()
+    }
   })
 }
 
@@ -144,7 +118,6 @@ export function useUpdateStats() {
           body: JSON.stringify({ value, deathsCount })
         })
         if (!response.ok) {
-          const errorData = await response.json()
           throw new Error('Failed to update statistics')
         }
         const data = await response.json()
@@ -172,7 +145,11 @@ export function useUpdateStats() {
 
       return { previousStats }
     },
-    onError: (err, variables, context) => {
+    onError: (
+      err: Error,
+      variables: StatsUpdate,
+      context: { previousStats: Stats | undefined } | undefined
+    ) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousStats) {
         queryClient.setQueryData(['regearStats'], context.previousStats)

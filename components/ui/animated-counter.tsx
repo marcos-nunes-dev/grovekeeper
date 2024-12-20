@@ -45,7 +45,7 @@ export function AnimatedCounter({
         cancelAnimationFrame(rafRef.current)
       }
     }
-  }, [value, duration])
+  }, [value, duration, displayValue])
 
   return formatPrice(displayValue, showZeroAsQuestionMarks)
 }

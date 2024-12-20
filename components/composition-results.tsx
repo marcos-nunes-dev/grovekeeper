@@ -1,7 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Eye, ThumbsUp } from 'lucide-react'
-import { CLASSES, PURPOSES } from '@/lib/constants'
 
 const mockCompositions = [
   {

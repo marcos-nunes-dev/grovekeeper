@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { PriceHistoryChart } from './price-history-chart'
 import { useEquivalentPrices, type PriceEquivalent } from '@/lib/hooks/useRegearQueries'
+import Image from 'next/image'
 
 interface RegearResultProps {
   result: RegearResult
@@ -182,9 +183,11 @@ function ItemTable({ items, title, customCalculation, ignoredItems, onToggleItem
                       "rounded bg-[#1C2128] border border-zinc-800/50 p-1",
                       compact ? "w-8 h-8" : "w-12 h-12"
                     )}>
-                      <img
+                      <Image
                         src={`https://render.albiononline.com/v1/item/${item.id}.png`}
                         alt={item.name}
+                        width={48}
+                        height={48}
                         className="w-full h-full object-contain"
                       />
                     </div>
@@ -337,9 +340,11 @@ export default function RegearResult({
                   <button className="flex items-center gap-2 text-[#00E6B4] font-semibold">
                     <div className="flex items-center gap-2">
                       {priceDisplay !== 'silver' && (
-                        <img
+                        <Image
                           src={`https://render.albiononline.com/v1/item/${priceDisplay}.png`}
                           alt={getPriceDisplayText()}
+                          width={24}
+                          height={24}
                           className="w-6 h-6 object-contain"
                         />
                       )}
@@ -353,25 +358,31 @@ export default function RegearResult({
                     Silver
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setPriceDisplay('T4_SKILLBOOK_STANDARD')} className="gap-2">
-                    <img
+                    <Image
                       src="https://render.albiononline.com/v1/item/T4_SKILLBOOK_STANDARD.png"
                       alt="Tome of Insight"
+                      width={24}
+                      height={24}
                       className="w-6 h-6 object-contain"
                     />
                     Tomes of Insight
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setPriceDisplay('TREASURE_DECORATIVE_RARITY1')} className="gap-2">
-                    <img
+                    <Image
                       src="https://render.albiononline.com/v1/item/TREASURE_DECORATIVE_RARITY1.png"
                       alt="Toy"
+                      width={24}
+                      height={24}
                       className="w-6 h-6 object-contain"
                     />
                     Toys
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setPriceDisplay('UNIQUE_GVGTOKEN_GENERIC')} className="gap-2">
-                    <img
+                    <Image
                       src="https://render.albiononline.com/v1/item/UNIQUE_GVGTOKEN_GENERIC.png"
                       alt="Siphoned Energy"
+                      width={24}
+                      height={24}
                       className="w-6 h-6 object-contain"
                     />
                     Siphoned Energy
