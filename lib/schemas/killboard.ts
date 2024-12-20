@@ -8,7 +8,11 @@ export const EquipmentSchema = z.object({
 
 export const KillboardResponseSchema = z.object({
   EventId: z.string(),
+  Location: z.string(),
   Victim: z.object({
+    Name: z.string(),
+    Id: z.string(),
+    AverageItemPower: z.number(),
     Equipment: z.record(EquipmentSchema),
     Inventory: z.array(EquipmentSchema)
   })

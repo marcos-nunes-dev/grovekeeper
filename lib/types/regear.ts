@@ -21,6 +21,7 @@ export interface RegearResult {
   }
   playerName?: string
   ip?: number
+  location?: string
 }
 
 export interface GroupRegearResult {

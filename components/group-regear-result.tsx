@@ -6,7 +6,7 @@ import GroupRegearFilters from '@/components/group-regear-filters'
 import { CARRYING_MOUNT_IDS, EQUIPMENT_SLOTS } from '@/lib/types/regear'
 import type { GroupRegearResult, RegearFilters, EquipmentSlot } from '@/lib/types/regear'
 import { formatPrice } from '@/lib/utils/price'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, MapPin } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -89,7 +89,10 @@ function applyFilters(result: GroupRegearResult, filters: RegearFilters): GroupR
         total: {
           value: totalValue,
           formatted: formatPrice(totalValue)
-        }
+        },
+        playerName: deathResult.playerName,
+        ip: deathResult.ip,
+        location: deathResult.location
       }
     }
   }).filter((r): r is NonNullable<typeof r> => r !== null)
@@ -153,6 +156,8 @@ export default function GroupRegearResultDisplay({ result }: GroupRegearResultPr
     }
   }
 
+  console.log(filteredResult)
+
   return (
     <div className="space-y-6 pb-24">
       <GroupRegearFilters filters={filters} onChange={setFilters} />
@@ -161,14 +166,22 @@ export default function GroupRegearResultDisplay({ result }: GroupRegearResultPr
         {filteredResult.results.map(({ killId, result: deathResult }) => (
           <div key={killId} className="space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium">
-                Death #{killId}
-                {deathResult.playerName && (
-                  <span className="text-zinc-400 ml-2">
-                    ({deathResult.playerName})
-                  </span>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-medium">
+                  Death #{killId}
+                  {deathResult.playerName && (
+                    <span className="text-zinc-400 ml-2">
+                      ({deathResult.playerName})
+                    </span>
+                  )}
+                </h3>
+                {deathResult.location && (
+                  <div className="flex items-center gap-1 text-zinc-400">
+                    <MapPin className="w-4 h-4" />
+                    <span className="text-sm">{deathResult.location}</span>
+                  </div>
                 )}
-              </h3>
+              </div>
               <span className="text-sm text-zinc-400">
                 Total: {deathResult.total.formatted} silver
               </span>
