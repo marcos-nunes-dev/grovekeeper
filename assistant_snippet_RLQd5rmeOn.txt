@@ -1,0 +1,8 @@
+1|const handleCalculate = () => {
+2|  if (!urlValidation.isValid) return
+3|  if (mode === 'group') {
+4|    // For now, just return as group mode is not implemented
+5|    return
+6|  }
+7|  calculate()
+8|} 

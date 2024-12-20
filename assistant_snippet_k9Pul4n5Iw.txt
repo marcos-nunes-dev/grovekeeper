@@ -1,0 +1,8 @@
+1|<Button 
+2|  onClick={handleCalculate} 
+3|  className="w-full bg-[#00E6B4] text-black hover:bg-[#1BECA0] disabled:opacity-50 disabled:cursor-not-allowed"
+4|  disabled={loading || mode === 'group' || !urlValidation.isValid}
+5|  aria-busy={loading}
+6|>
+7|  {loading ? 'Calculating...' : mode === 'group' ? 'Coming Soon' : urlValidation.message}
+8|</Button> 
