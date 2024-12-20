@@ -87,7 +87,9 @@ export async function getKillboardData(killboardUrl: string): Promise<RegearResu
     total: {
       value: totalValue,
       formatted: formatPrice(totalValue)
-    }
+    },
+    playerName: data.Victim.Name,
+    ip: data.Victim.AverageItemPower
   }
 }
 
