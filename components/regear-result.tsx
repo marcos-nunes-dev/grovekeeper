@@ -24,6 +24,11 @@ import { useEquivalentPrices, type PriceEquivalent } from '@/lib/hooks/useRegear
 
 interface RegearResultProps {
   result: RegearResult
+  compact?: boolean
+  customCalculation?: boolean
+  ignoredItems?: Set<string>
+  onToggleItem?: (itemId: string, quality: number) => void
+  onToggleAll?: (items: RegearItem[]) => void
 }
 
 function getValueIndicator(value: number, isReliable: boolean): { level: number; color: string } {
@@ -103,13 +108,14 @@ function PriceDisplay({ value, formattedValue, isReliable, priceHistory, count }
   )
 }
 
-function ItemTable({ items, title, customCalculation, ignoredItems, onToggleItem, onToggleAll }: { 
+function ItemTable({ items, title, customCalculation, ignoredItems, onToggleItem, onToggleAll, compact }: { 
   items: RegearItem[]
   title: string
   customCalculation: boolean
   ignoredItems: Set<string>
   onToggleItem: (itemId: string, quality: number) => void
   onToggleAll: (items: RegearItem[]) => void
+  compact?: boolean
 }) {
   const total = items.reduce((sum, item) => {
     if (customCalculation && ignoredItems.has(`${item.id}-${item.quality}`)) return sum
@@ -117,9 +123,15 @@ function ItemTable({ items, title, customCalculation, ignoredItems, onToggleItem
   }, 0)
 
   return (
-    <div className="rounded-lg border border-zinc-800/50 overflow-hidden">
+    <div className={cn(
+      "rounded-lg border border-zinc-800/50 overflow-hidden",
+      compact && "text-sm"
+    )}>
       <div className="bg-[#1C2128] p-4 border-b border-zinc-800/50">
-        <h2 className="text-lg font-semibold flex items-center justify-between">
+        <h2 className={cn(
+          "font-semibold flex items-center justify-between",
+          compact ? "text-base" : "text-lg"
+        )}>
           <span>{title}</span>
           <span className="text-sm text-zinc-400">
             Total: {formatPrice(total)} silver
@@ -166,7 +178,10 @@ function ItemTable({ items, title, customCalculation, ignoredItems, onToggleItem
                 )}
                 <td className="py-2 px-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded bg-[#1C2128] border border-zinc-800/50 p-1">
+                    <div className={cn(
+                      "rounded bg-[#1C2128] border border-zinc-800/50 p-1",
+                      compact ? "w-8 h-8" : "w-12 h-12"
+                    )}>
                       <img
                         src={`https://render.albiononline.com/v1/item/${item.id}.png`}
                         alt={item.name}
@@ -199,11 +214,44 @@ function ItemTable({ items, title, customCalculation, ignoredItems, onToggleItem
   )
 }
 
-export default function RegearResult({ result }: RegearResultProps) {
-  const [customCalculation, setCustomCalculation] = useState(false)
-  const [ignoredItems, setIgnoredItems] = useState<Set<string>>(new Set())
+export default function RegearResult({ 
+  result, 
+  compact,
+  customCalculation: externalCustomCalculation,
+  ignoredItems: externalIgnoredItems,
+  onToggleItem: externalOnToggleItem,
+  onToggleAll: externalOnToggleAll
+}: RegearResultProps) {
+  const [internalCustomCalculation, setInternalCustomCalculation] = useState(false)
+  const [internalIgnoredItems, setInternalIgnoredItems] = useState<Set<string>>(new Set())
   const [priceDisplay, setPriceDisplay] = useState<'silver' | PriceEquivalent>('silver')
   const { data: equivalentPrices } = useEquivalentPrices()
+
+  // Use external or internal state based on what's provided
+  const customCalculation = externalCustomCalculation ?? internalCustomCalculation
+  const ignoredItems = externalIgnoredItems ?? internalIgnoredItems
+  const handleToggleItem = externalOnToggleItem ?? ((itemId: string, quality: number) => {
+    const key = `${itemId}-${quality}`
+    const newIgnored = new Set(internalIgnoredItems)
+    if (newIgnored.has(key)) {
+      newIgnored.delete(key)
+    } else {
+      newIgnored.add(key)
+    }
+    setInternalIgnoredItems(newIgnored)
+  })
+  const handleToggleAll = externalOnToggleAll ?? ((items: RegearItem[]) => {
+    const newIgnored = new Set(internalIgnoredItems)
+    const allKeys = items.map(item => `${item.id}-${item.quality}`)
+    const allAreIgnored = allKeys.every(key => internalIgnoredItems.has(key))
+
+    if (allAreIgnored) {
+      allKeys.forEach(key => newIgnored.delete(key))
+    } else {
+      allKeys.forEach(key => newIgnored.add(key))
+    }
+    setInternalIgnoredItems(newIgnored)
+  })
 
   // Calculate total value excluding ignored items
   const calculatedTotal = useMemo(() => {
@@ -240,35 +288,12 @@ export default function RegearResult({ result }: RegearResultProps) {
     }
   }
 
-  const handleToggleItem = (itemId: string, quality: number) => {
-    const key = `${itemId}-${quality}`
-    const newIgnored = new Set(ignoredItems)
-    if (newIgnored.has(key)) {
-      newIgnored.delete(key)
-    } else {
-      newIgnored.add(key)
-    }
-    setIgnoredItems(newIgnored)
-  }
-
-  const handleToggleAll = (items: RegearItem[]) => {
-    const newIgnored = new Set(ignoredItems)
-    const allKeys = items.map(item => `${item.id}-${item.quality}`)
-    const allAreIgnored = allKeys.every(key => ignoredItems.has(key))
-
-    if (allAreIgnored) {
-      // Remove all items from ignored set
-      allKeys.forEach(key => newIgnored.delete(key))
-    } else {
-      // Add all items to ignored set
-      allKeys.forEach(key => newIgnored.add(key))
-    }
-    setIgnoredItems(newIgnored)
-  }
-
   return (
-    <div className="space-y-6 pb-24">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="space-y-6">
+      <div className={cn(
+        "grid gap-6",
+        compact ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 md:grid-cols-2"
+      )}>
         <ItemTable 
           items={result.equipped} 
           title="Equipped Items" 
@@ -276,6 +301,7 @@ export default function RegearResult({ result }: RegearResultProps) {
           ignoredItems={ignoredItems}
           onToggleItem={handleToggleItem}
           onToggleAll={handleToggleAll}
+          compact={compact}
         />
         <ItemTable 
           items={result.bag} 
@@ -284,73 +310,78 @@ export default function RegearResult({ result }: RegearResultProps) {
           ignoredItems={ignoredItems}
           onToggleItem={handleToggleItem}
           onToggleAll={handleToggleAll}
+          compact={compact}
         />
       </div>
-      <div className="fixed bottom-0 left-0 right-0 bg-[#1C2128] border-t border-zinc-800/50">
-        <div className="container mx-auto px-4">
-          <div className="py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h2 className="text-lg font-semibold">Total Regear Cost</h2>
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="custom-calculation"
-                  checked={customCalculation}
-                  onCheckedChange={setCustomCalculation}
-                />
-                <Label htmlFor="custom-calculation" className="text-sm">
-                  Custom Mode
-                </Label>
-              </div>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 text-[#00E6B4] font-semibold">
+      {!compact && (
+        <div className="fixed bottom-0 left-0 right-0 bg-[#1C2128] border-t border-zinc-800/50">
+          <div className="container mx-auto px-4">
+            <div className="py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h2 className="text-lg font-semibold">Total Regear Cost</h2>
+                {!externalCustomCalculation && (
                   <div className="flex items-center gap-2">
-                    {priceDisplay !== 'silver' && (
-                      <img
-                        src={`https://render.albiononline.com/v1/item/${priceDisplay}.png`}
-                        alt={getPriceDisplayText()}
-                        className="w-6 h-6 object-contain"
-                      />
-                    )}
-                    <span>{formatPrice(displayValue)} {priceDisplay === 'silver' ? 'silver' : getPriceDisplayText()}</span>
+                    <Switch
+                      id="custom-calculation"
+                      checked={internalCustomCalculation}
+                      onCheckedChange={setInternalCustomCalculation}
+                    />
+                    <Label htmlFor="custom-calculation" className="text-sm">
+                      Custom Mode
+                    </Label>
                   </div>
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[200px]">
-                <DropdownMenuItem onClick={() => setPriceDisplay('silver')} className="gap-2">
-                  Silver
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setPriceDisplay('T4_SKILLBOOK_STANDARD')} className="gap-2">
-                  <img
-                    src="https://render.albiononline.com/v1/item/T4_SKILLBOOK_STANDARD.png"
-                    alt="Tome of Insight"
-                    className="w-6 h-6 object-contain"
-                  />
-                  Tomes of Insight
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setPriceDisplay('TREASURE_DECORATIVE_RARITY1')} className="gap-2">
-                  <img
-                    src="https://render.albiononline.com/v1/item/TREASURE_DECORATIVE_RARITY1.png"
-                    alt="Toy"
-                    className="w-6 h-6 object-contain"
-                  />
-                  Toys
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setPriceDisplay('UNIQUE_GVGTOKEN_GENERIC')} className="gap-2">
-                  <img
-                    src="https://render.albiononline.com/v1/item/UNIQUE_GVGTOKEN_GENERIC.png"
-                    alt="Siphoned Energy"
-                    className="w-6 h-6 object-contain"
-                  />
-                  Siphoned Energy
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                )}
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 text-[#00E6B4] font-semibold">
+                    <div className="flex items-center gap-2">
+                      {priceDisplay !== 'silver' && (
+                        <img
+                          src={`https://render.albiononline.com/v1/item/${priceDisplay}.png`}
+                          alt={getPriceDisplayText()}
+                          className="w-6 h-6 object-contain"
+                        />
+                      )}
+                      <span>{formatPrice(displayValue)} {priceDisplay === 'silver' ? 'silver' : getPriceDisplayText()}</span>
+                    </div>
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[200px]">
+                  <DropdownMenuItem onClick={() => setPriceDisplay('silver')} className="gap-2">
+                    Silver
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setPriceDisplay('T4_SKILLBOOK_STANDARD')} className="gap-2">
+                    <img
+                      src="https://render.albiononline.com/v1/item/T4_SKILLBOOK_STANDARD.png"
+                      alt="Tome of Insight"
+                      className="w-6 h-6 object-contain"
+                    />
+                    Tomes of Insight
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setPriceDisplay('TREASURE_DECORATIVE_RARITY1')} className="gap-2">
+                    <img
+                      src="https://render.albiononline.com/v1/item/TREASURE_DECORATIVE_RARITY1.png"
+                      alt="Toy"
+                      className="w-6 h-6 object-contain"
+                    />
+                    Toys
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setPriceDisplay('UNIQUE_GVGTOKEN_GENERIC')} className="gap-2">
+                    <img
+                      src="https://render.albiononline.com/v1/item/UNIQUE_GVGTOKEN_GENERIC.png"
+                      alt="Siphoned Energy"
+                      className="w-6 h-6 object-contain"
+                    />
+                    Siphoned Energy
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

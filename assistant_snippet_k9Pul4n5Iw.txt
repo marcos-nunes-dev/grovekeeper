@@ -6,3 +6,15 @@
 6|>
 7|  {loading ? 'Calculating...' : mode === 'group' ? 'Coming Soon' : urlValidation.message}
 8|</Button> 
+9|{!externalCustomCalculation && (
+10|  <div className="flex items-center gap-2">
+11|    <Switch
+12|      id="custom-calculation"
+13|      checked={internalCustomCalculation}
+14|      onCheckedChange={setInternalCustomCalculation}
+15|    />
+16|    <Label htmlFor="custom-calculation" className="text-sm">
+17|      Custom Mode
+18|    </Label>
+19|  </div>
+20|)}

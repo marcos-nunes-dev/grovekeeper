@@ -1,10 +1,15 @@
 import { useCallback, useState, useEffect, useRef } from 'react'
 import { useRegearStats, useKillboardData, useUpdateStats } from './useRegearQueries'
 import { KillboardError } from '@/lib/utils/errors'
+import { getGroupKillboardData } from '@/lib/services/regear'
+import type { GroupRegearResult } from '@/lib/types/regear'
 
 export function useRegearCalculator() {
   const [url, setUrl] = useState('')
   const [submittedUrl, setSubmittedUrl] = useState<string | null>(null)
+  const [groupResult, setGroupResult] = useState<GroupRegearResult | null>(null)
+  const [groupLoading, setGroupLoading] = useState(false)
+  const [groupError, setGroupError] = useState<string | null>(null)
   const hasUpdatedStats = useRef(false)
 
   // Queries
@@ -28,7 +33,35 @@ export function useRegearCalculator() {
     setSubmittedUrl(url)
   }, [url])
 
-  // Effect to update stats when result is available
+  const calculateGroup = useCallback(async () => {
+    if (!url.trim()) return
+
+    setGroupLoading(true)
+    setGroupError(null)
+    setGroupResult(null)
+    hasUpdatedStats.current = false
+
+    try {
+      const result = await getGroupKillboardData(url)
+      setGroupResult(result)
+      
+      // Update stats with total value and increment deaths by the number of valid results
+      if (!updateStats.isPending) {
+        hasUpdatedStats.current = true
+        const validDeaths = result.results.length // Count only successful results
+        updateStats.mutate({
+          value: Math.floor(result.total.value),
+          deathsCount: validDeaths
+        })
+      }
+    } catch (error) {
+      setGroupError(error instanceof Error ? error.message : 'An error occurred')
+    } finally {
+      setGroupLoading(false)
+    }
+  }, [url, updateStats])
+
+  // Effect to update stats when individual result is available
   useEffect(() => {
     const shouldUpdateStats = 
       isSuccess && 
@@ -38,25 +71,33 @@ export function useRegearCalculator() {
 
     if (shouldUpdateStats) {
       hasUpdatedStats.current = true
-      const totalValue = Math.floor(result.total.value)
-      updateStats.mutate(totalValue)
+      // For individual mode, increment deaths by 1
+      updateStats.mutate({
+        value: Math.floor(result.total.value),
+        deathsCount: 1
+      })
     }
   }, [isSuccess, result, updateStats])
 
   // Reset the stats update flag when URL changes
   useEffect(() => {
-    hasUpdatedStats.current = false
-  }, [url])
+    // Only reset for individual mode (when using submittedUrl)
+    if (submittedUrl !== null) {
+      hasUpdatedStats.current = false
+    }
+  }, [submittedUrl])
 
-  const error = isError && queryError instanceof Error ? queryError.message : null
+  const error = isError && queryError instanceof Error ? queryError.message : groupError
 
   return {
     url,
     result,
-    loading: isLoadingKillboard || isLoadingStats || updateStats.isPending,
+    groupResult,
+    loading: isLoadingKillboard || isLoadingStats || updateStats.isPending || groupLoading,
     error,
     stats,
     setUrl,
-    calculate
+    calculate,
+    calculateGroup
   }
 } 

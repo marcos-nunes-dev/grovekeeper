@@ -31,7 +31,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { totalSilver } = await request.json()
+    const { value, deathsCount } = await request.json()
+
+    // Convert to BigInt and ensure positive values
+    const silverValue = BigInt(Math.max(0, Math.floor(value)))
+    const deaths = BigInt(Math.max(0, Math.floor(deathsCount)))
 
     // Atomically increment both counters
     const stats = await prisma.grovekeeperStatistics.upsert({
@@ -40,15 +44,15 @@ export async function POST(request: Request) {
       },
       create: {
         id: 'singleton',
-        deathsAnalyzed: BigInt(1),
-        silverCalculated: BigInt(totalSilver)
+        deathsAnalyzed: deaths,
+        silverCalculated: silverValue
       },
       update: {
         deathsAnalyzed: {
-          increment: 1
+          increment: deaths
         },
         silverCalculated: {
-          increment: totalSilver
+          increment: silverValue
         }
       }
     })
@@ -60,7 +64,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error updating statistics:', error)
     return NextResponse.json(
-      { error: 'Failed to update statistics' },
+      { error: 'Failed to update statistics', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

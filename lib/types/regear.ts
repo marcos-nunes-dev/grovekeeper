@@ -21,9 +21,21 @@ export interface RegearResult {
   }
 }
 
+export interface GroupRegearResult {
+  results: Array<{
+    killId: string
+    result: RegearResult
+  }>
+  total: {
+    value: number
+    formatted: string
+  }
+}
+
 export interface KillboardResponse {
   EventId: string
   Victim: {
+    Name: string
     Equipment: {
       [key: string]: {
         Type: string

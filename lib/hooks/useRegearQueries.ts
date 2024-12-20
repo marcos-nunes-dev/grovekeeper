@@ -126,19 +126,27 @@ export function useKillboardData(killboardUrl: string | null) {
   })
 }
 
+interface StatsUpdate {
+  value: number
+  deathsCount: number
+}
+
 // Update statistics mutation
 export function useUpdateStats() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (totalSilver: number) => {
+    mutationFn: async ({ value, deathsCount }: StatsUpdate) => {
       try {
         const response = await fetch('/api/regear-stats', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ totalSilver })
+          body: JSON.stringify({ value, deathsCount })
         })
-        if (!response.ok) throw new Error('Failed to update statistics')
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error('Failed to update statistics')
+        }
         const data = await response.json()
         return data as Stats
       } catch (error) {
@@ -146,7 +154,7 @@ export function useUpdateStats() {
         throw error
       }
     },
-    onMutate: async (totalSilver: number) => {
+    onMutate: async ({ value, deathsCount }: StatsUpdate) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['regearStats'] })
 
@@ -155,10 +163,11 @@ export function useUpdateStats() {
 
       // Optimistically update to the new value
       if (previousStats) {
-        queryClient.setQueryData<Stats>(['regearStats'], {
-          deathsAnalyzed: previousStats.deathsAnalyzed + 1,
-          silverCalculated: previousStats.silverCalculated + totalSilver
-        })
+        const newStats = {
+          deathsAnalyzed: previousStats.deathsAnalyzed + deathsCount,
+          silverCalculated: previousStats.silverCalculated + value
+        }
+        queryClient.setQueryData<Stats>(['regearStats'], newStats)
       }
 
       return { previousStats }

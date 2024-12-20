@@ -1,6 +1,7 @@
-import { RegearResult, KillboardResponse, PricesResponse } from '@/lib/types/regear'
+import { RegearResult, GroupRegearResult, KillboardResponse, PricesResponse } from '@/lib/types/regear'
 import { formatPrice, isPriceReliable } from '@/lib/utils/price'
 import { getFriendlyItemName } from '@/lib/utils/item-names'
+import { extractKillIds } from '@/lib/utils/url'
 
 export async function getKillboardData(killboardUrl: string): Promise<RegearResult> {
   // Extract kill ID from URL
@@ -83,6 +84,38 @@ export async function getKillboardData(killboardUrl: string): Promise<RegearResu
   return {
     equipped: equippedItems,
     bag: bagItems,
+    total: {
+      value: totalValue,
+      formatted: formatPrice(totalValue)
+    }
+  }
+}
+
+export async function getGroupKillboardData(input: string): Promise<GroupRegearResult> {
+  const killIds = extractKillIds(input)
+  if (killIds.length === 0) {
+    throw new Error('No valid killboard URLs found')
+  }
+
+  // Process each URL in parallel
+  const results = await Promise.all(
+    killIds.map(async (killId) => {
+      try {
+        const result = await getKillboardData(`https://albiononline.com/killboard/kill/${killId}`)
+        return { killId, result }
+      } catch (error) {
+        console.error(`Failed to process kill ID ${killId}:`, error)
+        return null
+      }
+    })
+  )
+
+  // Filter out failed results and calculate total
+  const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null)
+  const totalValue = validResults.reduce((sum, { result }) => sum + result.total.value, 0)
+
+  return {
+    results: validResults,
     total: {
       value: totalValue,
       formatted: formatPrice(totalValue)

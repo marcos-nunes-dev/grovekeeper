@@ -25,6 +25,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import GroupRegearResult from '@/components/group-regear-result'
 
 type RegearMode = 'individual' | 'group'
 
@@ -50,7 +51,9 @@ export default function RegearCalculator() {
     error,
     stats,
     setUrl,
-    calculate
+    calculate,
+    calculateGroup,
+    groupResult
   } = useRegearCalculator()
   const [mode, setMode] = useState<RegearMode>('individual')
   const [tooltipOpen, setTooltipOpen] = useState(false)
@@ -85,10 +88,10 @@ export default function RegearCalculator() {
   const handleCalculate = () => {
     if (!urlValidation.isValid) return
     if (mode === 'group') {
-      // For now, just return as group mode is not implemented
-      return
+      calculateGroup()
+    } else {
+      calculate()
     }
-    calculate()
   }
 
   return (
@@ -142,7 +145,7 @@ export default function RegearCalculator() {
                     Individual
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setMode('group')}>
-                    Group (Coming Soon)
+                    Group
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -232,10 +235,10 @@ export default function RegearCalculator() {
           <Button 
             onClick={handleCalculate} 
             className="w-full bg-[#00E6B4] text-black hover:bg-[#1BECA0] disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={loading || mode === 'group' || !urlValidation.isValid}
+            disabled={loading || !urlValidation.isValid}
             aria-busy={loading}
           >
-            {loading ? 'Calculating...' : mode === 'group' ? 'Coming Soon' : urlValidation.message}
+            {loading ? 'Calculating...' : urlValidation.message}
           </Button>
         </div>
       </PageHero>
@@ -247,9 +250,11 @@ export default function RegearCalculator() {
       <div className="container mx-auto px-4" role="region" aria-live="polite">
         {error ? (
           <ErrorDisplay message={error} />
-        ) : result && mode === 'individual' ? (
-          <RegearResult result={result} />
-        ) : null}
+        ) : mode === 'group' ? (
+          groupResult && <GroupRegearResult result={groupResult} />
+        ) : (
+          result && <RegearResult result={result} />
+        )}
       </div>
     </div>
   )
