@@ -8,6 +8,7 @@ const navigation = [
   { name: 'Builds', href: '/builds' },
   { name: 'Regear Calculator', href: '/regear-calculator' },
   { name: 'Attendance', href: '/attendance' },
+  { name: 'Profile', href: '/profile' },
 ]
 
 export default function Navigation() {
