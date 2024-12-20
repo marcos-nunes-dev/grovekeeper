@@ -1,124 +1,62 @@
-import { useCallback, useReducer, useEffect } from 'react'
-import { getKillboardData } from '@/lib/services/regear'
-import { KillboardError, getErrorMessage } from '@/lib/utils/errors'
-import type { RegearResult } from '@/lib/types/regear'
-
-type Stats = {
-  deathsAnalyzed: number
-  silverCalculated: number
-}
-
-type State = {
-  url: string
-  result: RegearResult | null
-  loading: boolean
-  error: string | null
-  stats: Stats | null
-}
-
-type Action =
-  | { type: 'SET_URL'; payload: string }
-  | { type: 'START_CALCULATION' }
-  | { type: 'CALCULATION_SUCCESS'; payload: RegearResult }
-  | { type: 'CALCULATION_ERROR'; payload: unknown }
-  | { type: 'SET_STATS'; payload: Stats }
-  | { type: 'RESET' }
-
-const initialState: State = {
-  url: '',
-  result: null,
-  loading: false,
-  error: null,
-  stats: null
-}
-
-function reducer(state: State, action: Action): State {
-  switch (action.type) {
-    case 'SET_URL':
-      return { ...state, url: action.payload, error: null }
-    case 'START_CALCULATION':
-      return { ...state, loading: true, error: null, result: null }
-    case 'CALCULATION_SUCCESS':
-      return { ...state, loading: false, result: action.payload, error: null }
-    case 'CALCULATION_ERROR':
-      return { 
-        ...state, 
-        loading: false, 
-        error: getErrorMessage(action.payload),
-        result: null 
-      }
-    case 'SET_STATS':
-      return { ...state, stats: action.payload }
-    case 'RESET':
-      return initialState
-    default:
-      return state
-  }
-}
+import { useCallback, useState, useEffect, useRef } from 'react'
+import { useRegearStats, useKillboardData, useUpdateStats } from './useRegearQueries'
+import { KillboardError } from '@/lib/utils/errors'
 
 export function useRegearCalculator() {
-  const [state, dispatch] = useReducer(reducer, initialState)
+  const [url, setUrl] = useState('')
+  const [submittedUrl, setSubmittedUrl] = useState<string | null>(null)
+  const hasUpdatedStats = useRef(false)
 
-  const fetchStats = useCallback(async () => {
-    try {
-      const response = await fetch('/api/regear-stats')
-      if (!response.ok) throw new Error('Failed to fetch stats')
-      const stats = await response.json()
-      dispatch({ type: 'SET_STATS', payload: stats })
-    } catch (error) {
-      console.error('Error fetching stats:', error)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchStats()
-  }, [fetchStats])
-
-  const setUrl = useCallback((url: string) => {
-    dispatch({ type: 'SET_URL', payload: url })
-  }, [])
+  // Queries
+  const { data: stats, isLoading: isLoadingStats } = useRegearStats()
+  const { 
+    data: result, 
+    isLoading: isLoadingKillboard, 
+    error: queryError,
+    isSuccess,
+    isError
+  } = useKillboardData(submittedUrl)
+  const updateStats = useUpdateStats()
 
   const calculate = useCallback(async () => {
-    if (!state.url.trim()) {
-      dispatch({ 
-        type: 'CALCULATION_ERROR', 
-        payload: new KillboardError('Please enter a killboard URL', 'INVALID_URL')
-      })
-      return
+    if (!url.trim()) {
+      throw new KillboardError('Please enter a killboard URL', 'INVALID_URL')
     }
 
-    dispatch({ type: 'START_CALCULATION' })
+    // Reset the stats update flag when starting a new calculation
+    hasUpdatedStats.current = false
+    setSubmittedUrl(url)
+  }, [url])
 
-    try {
-      const data = await getKillboardData(state.url)
-      dispatch({ type: 'CALCULATION_SUCCESS', payload: data })
+  // Effect to update stats when result is available
+  useEffect(() => {
+    const shouldUpdateStats = 
+      isSuccess && 
+      result?.total?.value && 
+      !hasUpdatedStats.current && 
+      !updateStats.isPending
 
-      // Save the calculation to the database
-      const killboardId = state.url.split('/').pop() || ''
-      await fetch('/api/regear-stats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          killboardId,
-          totalSilver: Math.floor(data.total.value)
-        })
-      })
-
-      // Refresh stats after calculation
-      fetchStats()
-    } catch (error) {
-      dispatch({ type: 'CALCULATION_ERROR', payload: error })
+    if (shouldUpdateStats) {
+      hasUpdatedStats.current = true
+      const totalValue = Math.floor(result.total.value)
+      updateStats.mutate(totalValue)
     }
-  }, [state.url, fetchStats])
+  }, [isSuccess, result, updateStats])
 
-  const reset = useCallback(() => {
-    dispatch({ type: 'RESET' })
-  }, [])
+  // Reset the stats update flag when URL changes
+  useEffect(() => {
+    hasUpdatedStats.current = false
+  }, [url])
+
+  const error = isError && queryError instanceof Error ? queryError.message : null
 
   return {
-    ...state,
+    url,
+    result,
+    loading: isLoadingKillboard || isLoadingStats || updateStats.isPending,
+    error,
+    stats,
     setUrl,
-    calculate,
-    reset
+    calculate
   }
 } 
