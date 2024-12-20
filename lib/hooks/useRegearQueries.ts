@@ -8,24 +8,92 @@ interface Stats {
   silverCalculated: number
 }
 
+// Equivalent items for price conversion
+const EQUIVALENT_ITEMS = [
+  'T4_SKILLBOOK_STANDARD',
+  'TREASURE_DECORATIVE_RARITY1',
+  'UNIQUE_GVGTOKEN_GENERIC'
+] as const
+
+export type PriceEquivalent = typeof EQUIVALENT_ITEMS[number]
+
+interface EquivalentPrices {
+  T4_SKILLBOOK_STANDARD: number
+  TREASURE_DECORATIVE_RARITY1: number
+  UNIQUE_GVGTOKEN_GENERIC: number
+}
+
 // Fetch statistics
 export function useRegearStats() {
+  const queryClient = useQueryClient()
+
   return useQuery<Stats>({
     queryKey: ['regearStats'],
     queryFn: async () => {
       try {
         const response = await fetch('/api/regear-stats')
         if (!response.ok) throw new Error('Failed to fetch statistics')
-        return response.json()
+        const data = await response.json()
+        return {
+          deathsAnalyzed: data.deathsAnalyzed ?? 0,
+          silverCalculated: data.silverCalculated ?? 0
+        }
       } catch (error) {
         console.error('Error fetching stats:', error)
         throw error
       }
     },
-    // Refetch on window focus to keep stats in sync
-    refetchOnWindowFocus: true,
-    // Cache for 1 minute
-    staleTime: 60 * 1000
+    // Only refetch on mount and when explicitly invalidated
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
+    // Keep in cache for 30 minutes
+    gcTime: 30 * 60 * 1000,
+    // Initialize with zeros to avoid loading state
+    placeholderData: {
+      deathsAnalyzed: 0,
+      silverCalculated: 0
+    },
+    // Transform any null or undefined values to 0
+    select: (data) => ({
+      deathsAnalyzed: data.deathsAnalyzed ?? 0,
+      silverCalculated: data.silverCalculated ?? 0
+    })
+  })
+}
+
+// Fetch equivalent item prices
+export function useEquivalentPrices() {
+  return useQuery<EquivalentPrices>({
+    queryKey: ['equivalentPrices'],
+    queryFn: async () => {
+      try {
+        const response = await fetch(`/api/prices?items=${EQUIVALENT_ITEMS.join(',')}`)
+        if (!response.ok) throw new Error('Failed to fetch equivalent prices')
+        const data = await response.json()
+        
+        // Extract average prices for each item
+        return {
+          T4_SKILLBOOK_STANDARD: data.T4_SKILLBOOK_STANDARD?.avg_price ?? 0,
+          TREASURE_DECORATIVE_RARITY1: data.TREASURE_DECORATIVE_RARITY1?.avg_price ?? 0,
+          UNIQUE_GVGTOKEN_GENERIC: data.UNIQUE_GVGTOKEN_GENERIC?.avg_price ?? 0
+        }
+      } catch (error) {
+        console.error('Error fetching equivalent prices:', error)
+        throw error
+      }
+    },
+    // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
+    // Keep in cache for 30 minutes
+    gcTime: 30 * 60 * 1000,
+    // Initialize with zeros to avoid loading state
+    placeholderData: {
+      T4_SKILLBOOK_STANDARD: 0,
+      TREASURE_DECORATIVE_RARITY1: 0,
+      UNIQUE_GVGTOKEN_GENERIC: 0
+    }
   })
 }
 

@@ -1,13 +1,16 @@
-export function formatPrice(price: number): string {
-  if (price === 0) return '???'
-  if (price >= 1_000_000_000) {
-    return (price / 1_000_000_000).toFixed(1) + 'B'
-  } else if (price >= 1_000_000) {
-    return (price / 1_000_000).toFixed(1) + 'M'
-  } else if (price >= 1_000) {
-    return (price / 1_000).toFixed(0) + 'K'
+export function formatPrice(value: number, showZeroAsQuestionMarks = true) {
+  if (value === 0) {
+    return showZeroAsQuestionMarks ? '???' : '0'
+  }
+
+  if (value >= 1_000_000_000) {
+    return (value / 1_000_000_000).toFixed(1) + 'B'
+  } else if (value >= 1_000_000) {
+    return (value / 1_000_000).toFixed(1) + 'M'
+  } else if (value >= 1_000) {
+    return (value / 1_000).toFixed(0) + 'K'
   } else {
-    return price.toFixed(0)
+    return value.toFixed(0)
   }
 }
 

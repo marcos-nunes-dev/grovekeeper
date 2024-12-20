@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import type { RegearResult, RegearItem } from '@/lib/types/regear'
-import { HelpCircle } from 'lucide-react'
+import { HelpCircle, ChevronDown } from 'lucide-react'
 import { formatPrice } from '@/lib/utils/price'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Switch } from '@/components/ui/switch'
@@ -13,7 +13,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { PriceHistoryChart } from './price-history-chart'
+import { useEquivalentPrices, useRegearStats, type PriceEquivalent } from '@/lib/hooks/useRegearQueries'
+import { AnimatedCounter } from './ui/animated-counter'
 
 interface RegearResultProps {
   result: RegearResult
@@ -195,6 +203,9 @@ function ItemTable({ items, title, customCalculation, ignoredItems, onToggleItem
 export default function RegearResult({ result }: RegearResultProps) {
   const [customCalculation, setCustomCalculation] = useState(false)
   const [ignoredItems, setIgnoredItems] = useState<Set<string>>(new Set())
+  const [priceDisplay, setPriceDisplay] = useState<'silver' | PriceEquivalent>('silver')
+  const { data: equivalentPrices } = useEquivalentPrices()
+  const stats = useRegearStats()
 
   // Calculate total value excluding ignored items
   const calculatedTotal = useMemo(() => {
@@ -206,6 +217,30 @@ export default function RegearResult({ result }: RegearResultProps) {
       return sum + (item.value * item.count)
     }, 0)
   }, [result, customCalculation, ignoredItems])
+
+  // Calculate equivalent values
+  const displayValue = useMemo(() => {
+    if (priceDisplay === 'silver' || !equivalentPrices) return calculatedTotal
+
+    const equivalentPrice = equivalentPrices[priceDisplay]
+    if (!equivalentPrice) return calculatedTotal
+
+    return Math.floor(calculatedTotal / equivalentPrice)
+  }, [calculatedTotal, priceDisplay, equivalentPrices])
+
+  // Get display text for the current price type
+  const getPriceDisplayText = () => {
+    switch (priceDisplay) {
+      case 'T4_SKILLBOOK_STANDARD':
+        return 'Tomes of Insight'
+      case 'TREASURE_DECORATIVE_RARITY1':
+        return 'Toys'
+      case 'UNIQUE_GVGTOKEN_GENERIC':
+        return 'Siphoned Energy'
+      default:
+        return 'Silver'
+    }
+  }
 
   const handleToggleItem = (itemId: string, quality: number) => {
     const key = `${itemId}-${quality}`
@@ -269,10 +304,63 @@ export default function RegearResult({ result }: RegearResultProps) {
                 </Label>
               </div>
             </div>
-            <span className="text-[#00E6B4] font-semibold">
-              {formatPrice(calculatedTotal)} silver
-            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 text-[#00E6B4] font-semibold">
+                  <div className="flex items-center gap-2">
+                    {priceDisplay !== 'silver' && (
+                      <img
+                        src={`https://render.albiononline.com/v1/item/${priceDisplay}.png`}
+                        alt={getPriceDisplayText()}
+                        className="w-6 h-6 object-contain"
+                      />
+                    )}
+                    <span>{formatPrice(displayValue)} {priceDisplay === 'silver' ? 'silver' : getPriceDisplayText()}</span>
+                  </div>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[200px]">
+                <DropdownMenuItem onClick={() => setPriceDisplay('silver')} className="gap-2">
+                  Silver
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPriceDisplay('T4_SKILLBOOK_STANDARD')} className="gap-2">
+                  <img
+                    src="https://render.albiononline.com/v1/item/T4_SKILLBOOK_STANDARD.png"
+                    alt="Tome of Insight"
+                    className="w-6 h-6 object-contain"
+                  />
+                  Tomes of Insight
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPriceDisplay('TREASURE_DECORATIVE_RARITY1')} className="gap-2">
+                  <img
+                    src="https://render.albiononline.com/v1/item/TREASURE_DECORATIVE_RARITY1.png"
+                    alt="Toy"
+                    className="w-6 h-6 object-contain"
+                  />
+                  Toys
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPriceDisplay('UNIQUE_GVGTOKEN_GENERIC')} className="gap-2">
+                  <img
+                    src="https://render.albiononline.com/v1/item/UNIQUE_GVGTOKEN_GENERIC.png"
+                    alt="Siphoned Energy"
+                    className="w-6 h-6 object-contain"
+                  />
+                  Siphoned Energy
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <span>Deaths analyzed:</span>
+          <AnimatedCounter value={stats.data?.deathsAnalyzed ?? 0} showZeroAsQuestionMarks={false} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span>Silver calculated:</span>
+          <AnimatedCounter value={stats.data?.silverCalculated ?? 0} showZeroAsQuestionMarks={false} />
         </div>
       </div>
     </div>
