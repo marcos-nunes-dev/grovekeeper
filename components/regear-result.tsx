@@ -1,7 +1,13 @@
+"use client"
+
+import { useState, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import type { RegearResult, RegearItem } from '@/lib/types/regear'
 import { HelpCircle } from 'lucide-react'
 import { formatPrice } from '@/lib/utils/price'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import {
   Tooltip,
   TooltipContent,
@@ -90,8 +96,18 @@ function PriceDisplay({ value, formattedValue, isReliable, priceHistory, count }
   )
 }
 
-function ItemTable({ items, title }: { items: RegearItem[], title: string }) {
-  const total = items.reduce((sum, item) => sum + (item.value * item.count), 0)
+function ItemTable({ items, title, customCalculation, ignoredItems, onToggleItem, onToggleAll }: { 
+  items: RegearItem[]
+  title: string
+  customCalculation: boolean
+  ignoredItems: Set<string>
+  onToggleItem: (itemId: string, quality: number) => void
+  onToggleAll: (items: RegearItem[]) => void
+}) {
+  const total = items.reduce((sum, item) => {
+    if (customCalculation && ignoredItems.has(`${item.id}-${item.quality}`)) return sum
+    return sum + (item.value * item.count)
+  }, 0)
 
   return (
     <div className="rounded-lg border border-zinc-800/50 overflow-hidden">
@@ -107,6 +123,17 @@ function ItemTable({ items, title }: { items: RegearItem[], title: string }) {
         <table className="w-full">
           <thead className="bg-[#161B22]">
             <tr>
+              {customCalculation && (
+                <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">
+                  <Checkbox
+                    checked={items.every(item => 
+                      ignoredItems.has(`${item.id}-${item.quality}`)
+                    )}
+                    onCheckedChange={() => onToggleAll(items)}
+                    aria-label={`Toggle all ${title.toLowerCase()}`}
+                  />
+                </th>
+              )}
               <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400 w-1/2">Item</th>
               <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400 w-1/2">Value</th>
             </tr>
@@ -114,12 +141,22 @@ function ItemTable({ items, title }: { items: RegearItem[], title: string }) {
           <tbody>
             {items.map((item) => (
               <tr
-                key={item.id}
+                key={`${item.id}-${item.quality}`}
                 className={cn(
                   "transition-colors hover:bg-[#1C2128]",
-                  "bg-[#0D1117]"
+                  "bg-[#0D1117]",
+                  customCalculation && ignoredItems.has(`${item.id}-${item.quality}`) && "opacity-50"
                 )}
               >
+                {customCalculation && (
+                  <td className="py-2 px-4">
+                    <Checkbox
+                      checked={ignoredItems.has(`${item.id}-${item.quality}`)}
+                      onCheckedChange={() => onToggleItem(item.id, item.quality)}
+                      aria-label={`Ignore ${item.name}`}
+                    />
+                  </td>
+                )}
                 <td className="py-2 px-4">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded bg-[#1C2128] border border-zinc-800/50 p-1">
@@ -156,18 +193,84 @@ function ItemTable({ items, title }: { items: RegearItem[], title: string }) {
 }
 
 export default function RegearResult({ result }: RegearResultProps) {
+  const [customCalculation, setCustomCalculation] = useState(false)
+  const [ignoredItems, setIgnoredItems] = useState<Set<string>>(new Set())
+
+  // Calculate total value excluding ignored items
+  const calculatedTotal = useMemo(() => {
+    if (!customCalculation) return result.total.value
+
+    const allItems = [...result.equipped, ...result.bag]
+    return allItems.reduce((sum, item) => {
+      if (ignoredItems.has(`${item.id}-${item.quality}`)) return sum
+      return sum + (item.value * item.count)
+    }, 0)
+  }, [result, customCalculation, ignoredItems])
+
+  const handleToggleItem = (itemId: string, quality: number) => {
+    const key = `${itemId}-${quality}`
+    const newIgnored = new Set(ignoredItems)
+    if (newIgnored.has(key)) {
+      newIgnored.delete(key)
+    } else {
+      newIgnored.add(key)
+    }
+    setIgnoredItems(newIgnored)
+  }
+
+  const handleToggleAll = (items: RegearItem[]) => {
+    const newIgnored = new Set(ignoredItems)
+    const allKeys = items.map(item => `${item.id}-${item.quality}`)
+    const allAreIgnored = allKeys.every(key => ignoredItems.has(key))
+
+    if (allAreIgnored) {
+      // Remove all items from ignored set
+      allKeys.forEach(key => newIgnored.delete(key))
+    } else {
+      // Add all items to ignored set
+      allKeys.forEach(key => newIgnored.add(key))
+    }
+    setIgnoredItems(newIgnored)
+  }
+
   return (
     <div className="space-y-6 pb-24">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <ItemTable items={result.equipped} title="Equipped Items" />
-        <ItemTable items={result.bag} title="Items in Bag" />
+        <ItemTable 
+          items={result.equipped} 
+          title="Equipped Items" 
+          customCalculation={customCalculation}
+          ignoredItems={ignoredItems}
+          onToggleItem={handleToggleItem}
+          onToggleAll={handleToggleAll}
+        />
+        <ItemTable 
+          items={result.bag} 
+          title="Items in Bag" 
+          customCalculation={customCalculation}
+          ignoredItems={ignoredItems}
+          onToggleItem={handleToggleItem}
+          onToggleAll={handleToggleAll}
+        />
       </div>
       <div className="fixed bottom-0 left-0 right-0 bg-[#1C2128] border-t border-zinc-800/50">
         <div className="container mx-auto px-4">
           <div className="py-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Total Regear Cost</h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-semibold">Total Regear Cost</h2>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="custom-calculation"
+                  checked={customCalculation}
+                  onCheckedChange={setCustomCalculation}
+                />
+                <Label htmlFor="custom-calculation" className="text-sm">
+                  Custom Mode
+                </Label>
+              </div>
+            </div>
             <span className="text-[#00E6B4] font-semibold">
-              {result.total.formatted} silver
+              {formatPrice(calculatedTotal)} silver
             </span>
           </div>
         </div>
