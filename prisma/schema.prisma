@@ -16,3 +16,14 @@ model GrovekeeperStatistics {
 
   @@map("statistics")
 }
+
+model GuildHistory {
+  id          String   @id @default(cuid())
+  playerName  String
+  guildName   String
+  eventDate   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([playerName])
+  @@index([eventDate])
+}

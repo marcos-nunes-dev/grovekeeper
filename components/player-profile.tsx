@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
-import { Share2, Sword, Users, Coins, History, Check } from 'lucide-react'
+import { Share2, Sword, Users, Coins, Check } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import Image from 'next/image'
 import { useState } from 'react'
@@ -11,6 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import GuildHistory from './guild-history'
 
 interface PlayerData {
   id: string
@@ -270,15 +271,7 @@ export default function PlayerProfile({ playerData, region, shareUrl }: PlayerPr
         </Card>
 
         {/* Guild History Widget */}
-        <Card className="bg-[#0D1117] border-zinc-800/50 p-4 rounded-lg">
-          <div className="flex items-center gap-2 mb-4">
-            <History className="h-5 w-5 text-[#00E6B4]" />
-            <h3 className="font-semibold">Guild History</h3>
-          </div>
-          <div className="text-sm text-zinc-400 text-center py-4">
-            Guild history will be available soon
-          </div>
-        </Card>
+        <GuildHistory playerName={playerData.name} region={region} />
       </div>
 
       {/* Main Content */}
