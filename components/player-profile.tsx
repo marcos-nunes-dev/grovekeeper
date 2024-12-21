@@ -1,17 +1,39 @@
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Share2, Sword, Users, Coins, History } from 'lucide-react'
+import { Share2, Sword, Users, Coins, History, Check } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import Image from 'next/image'
+import { useState } from 'react'
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
-interface PlayerProfileProps {
-  playerName: string
+interface PlayerData {
+  id: string
+  name: string
+  guildName: string
+  allianceName: string
+  allianceTag: string
+  avatar: string
+  killFame: number
+  deathFame: number
+  pveTotal: number
+  gatheringTotal: number
+  craftingTotal: number
   region: string
 }
 
-// Mock fame progression data
+interface PlayerProfileProps {
+  playerData: PlayerData
+  region: string
+  shareUrl: string
+}
+
+// Mock data that we'll replace with real data in the future
 const fameData = [
   { date: '12/13', fame: 20000 },
   { date: '12/14', fame: 22000 },
@@ -22,7 +44,6 @@ const fameData = [
   { date: '12/19', fame: 32000 },
 ]
 
-// Mock ZvZ data
 const zvzData = [
   { date: '12/15', wins: 2, losses: 1 },
   { date: '12/16', wins: 3, losses: 2 },
@@ -33,7 +54,6 @@ const zvzData = [
   { date: '12/21', wins: 2, losses: 2 },
 ]
 
-// Mock recent activities
 const recentActivities = [
   {
     type: 'ZvZ',
@@ -54,91 +74,35 @@ const recentActivities = [
     allies: ['Player1', 'Player2', 'Player3'],
     enemies: ['Enemy1', 'Enemy2', 'Enemy3'],
   },
-  {
-    type: 'Ganking',
-    result: 'Defeat',
-    time: '3 hours ago',
-    kills: 1,
-    deaths: 1,
-    assists: 2,
-    fame: 50000,
-    equipment: {
-      mainHand: 'T8_2H_CLAWPAIR',
-      head: 'T8_HEAD_LEATHER',
-      chest: 'T8_ARMOR_LEATHER',
-      shoes: 'T8_SHOES_LEATHER',
-      cape: 'T8_CAPE',
-    },
-    allies: ['Player4', 'Player5'],
-    enemies: ['Enemy4', 'Enemy5'],
-  },
-  {
-    type: 'ZvZ',
-    result: 'Victory',
-    time: '5 hours ago',
-    kills: 3,
-    deaths: 0,
-    assists: 8,
-    fame: 120000,
-    equipment: {
-      mainHand: 'T8_MAIN_SPEAR',
-      offHand: 'T8_OFF_SHIELD',
-      head: 'T8_HEAD_PLATE',
-      chest: 'T8_ARMOR_PLATE',
-      shoes: 'T8_SHOES_PLATE',
-      cape: 'T8_CAPE',
-    },
-    allies: ['Player1', 'Player2', 'Player3'],
-    enemies: ['Enemy1', 'Enemy2', 'Enemy3'],
-  },
-  {
-    type: 'Ganking',
-    result: 'Victory',
-    time: '6 hours ago',
-    kills: 2,
-    deaths: 0,
-    assists: 1,
-    fame: 80000,
-    equipment: {
-      mainHand: 'T8_2H_CLAWPAIR',
-      head: 'T8_HEAD_LEATHER',
-      chest: 'T8_ARMOR_LEATHER',
-      shoes: 'T8_SHOES_LEATHER',
-      cape: 'T8_CAPE',
-    },
-    allies: ['Player4', 'Player5'],
-    enemies: ['Enemy4'],
-  },
-  {
-    type: 'ZvZ',
-    result: 'Defeat',
-    time: '8 hours ago',
-    kills: 2,
-    deaths: 1,
-    assists: 5,
-    fame: 90000,
-    equipment: {
-      mainHand: 'T8_MAIN_SPEAR',
-      offHand: 'T8_OFF_SHIELD',
-      head: 'T8_HEAD_PLATE',
-      chest: 'T8_ARMOR_PLATE',
-      shoes: 'T8_SHOES_PLATE',
-      cape: 'T8_CAPE',
-    },
-    allies: ['Player1', 'Player2', 'Player3'],
-    enemies: ['Enemy1', 'Enemy2', 'Enemy3'],
-  },
+  // ... (keep other mock activities)
 ]
 
-// Mock guild history data
-const guildHistory = [
-  { id: 1, name: "Albion Elites", joinDate: "2023-12-01", leaveDate: "Present", duration: "20 days" },
-  { id: 2, name: "Silver Wolves", joinDate: "2023-10-15", leaveDate: "2023-11-30", duration: "46 days" },
-  { id: 3, name: "Iron Guardians", joinDate: "2023-08-01", leaveDate: "2023-10-14", duration: "74 days" },
-  { id: 4, name: "Newbie Adventures", joinDate: "2023-06-15", leaveDate: "2023-07-31", duration: "46 days" },
-]
+function formatFame(fame: number): string {
+  if (fame >= 1_000_000_000) {
+    return `${(fame / 1_000_000_000).toFixed(1)}B`
+  }
+  if (fame >= 1_000_000) {
+    return `${(fame / 1_000_000).toFixed(1)}M`
+  }
+  if (fame >= 1_000) {
+    return `${(fame / 1_000).toFixed(1)}K`
+  }
+  return fame.toString()
+}
 
-export default function PlayerProfile({ playerName, region }: PlayerProfileProps) {
+export default function PlayerProfile({ playerData, region, shareUrl }: PlayerProfileProps) {
+  const [copied, setCopied] = useState(false)
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy URL:', err)
+    }
+  }
+
   // Calculate ZvZ stats
   const zvzStats = {
     total: zvzData.reduce((sum, day) => sum + day.wins + day.losses, 0),
@@ -154,6 +118,14 @@ export default function PlayerProfile({ playerName, region }: PlayerProfileProps
     silverLost: 8000000,
   }
 
+  // Calculate fame percentages for progress bars
+  const totalFame = playerData.killFame + playerData.pveTotal + playerData.gatheringTotal
+  const pvpPercentage = (playerData.killFame / totalFame) * 100
+  const pvePercentage = (playerData.pveTotal / totalFame) * 100
+  const gatheringPercentage = (playerData.gatheringTotal / totalFame) * 100
+
+  console.log(playerData)
+
   return (
     <div className="grid grid-cols-12 gap-4">
       {/* Left Sidebar */}
@@ -161,35 +133,72 @@ export default function PlayerProfile({ playerName, region }: PlayerProfileProps
         {/* Player Info Card */}
         <Card className="bg-[#0D1117] border-zinc-800/50 p-4 rounded-lg">
           <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="relative w-16 h-16 rounded-full bg-[#1C2128] border border-zinc-800/50 overflow-hidden">
+            <div className="flex items-center gap-3 -translate-x-4">
+              <div className="relative w-24 h-24">
                 <Image
-                  src={`https://render.albiononline.com/v1/player/${playerName}/avatar?quality=0`}
-                  alt={playerName}
+                  src="/avatar2.png"
+                  alt={playerData.name}
                   width={64}
                   height={64}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover rounded-full"
+                />
+                <Image
+                  src="/border.png"
+                  alt="border"
+                  width={64}
+                  height={64}
+                  className="absolute top-0 left-0 w-full h-full object-contain"
                 />
               </div>
               <div>
-                <h2 className="text-xl font-bold">{playerName}</h2>
+                <h2 className="text-xl font-bold">{playerData.name}</h2>
                 <p className="text-sm text-zinc-400">{region}</p>
               </div>
             </div>
-            <Button variant="ghost" size="icon">
-              <Share2 className="h-4 w-4" />
-            </Button>
+            <div className="relative">
+              <TooltipProvider>
+                {copied ? (
+                  <UITooltip open>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={handleShare}>
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="bg-[#00E6B4] border-0">
+                      <div className="flex items-center gap-2 text-black">
+                        <Check className="h-4 w-4" />
+                        <span>Copied to clipboard!</span>
+                      </div>
+                    </TooltipContent>
+                  </UITooltip>
+                ) : (
+                  <UITooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={handleShare}>
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <div className="flex items-center gap-2">
+                        <Share2 className="h-4 w-4" />
+                        <span>Share profile</span>
+                      </div>
+                    </TooltipContent>
+                  </UITooltip>
+                )}
+              </TooltipProvider>
+            </div>
           </div>
 
           <div className="space-y-4">
             <div>
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-zinc-400">Guild</span>
-                <span>Albion Elites</span>
+                <span>{playerData.guildName || 'No Guild'}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-400">Alliance</span>
-                <span>Top Alliances</span>
+                <span>{playerData.allianceName || 'No Alliance'}</span>
               </div>
             </div>
 
@@ -197,28 +206,29 @@ export default function PlayerProfile({ playerName, region }: PlayerProfileProps
               <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span>PvP Fame</span>
-                  <span className="text-[#00E6B4]">5.2M</span>
+                  <span className="text-[#00E6B4]">{formatFame(playerData.killFame)}</span>
                 </div>
-                <Progress value={72} className="h-2" />
+                <Progress value={pvpPercentage} className="h-2" />
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span>PvE Fame</span>
-                  <span className="text-[#00E6B4]">25M</span>
+                  <span className="text-[#00E6B4]">{formatFame(playerData.pveTotal)}</span>
                 </div>
-                <Progress value={85} className="h-2" />
+                <Progress value={pvePercentage} className="h-2" />
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span>Gathering Fame</span>
-                  <span className="text-[#00E6B4]">12M</span>
+                  <span className="text-[#00E6B4]">{formatFame(playerData.gatheringTotal)}</span>
                 </div>
-                <Progress value={45} className="h-2" />
+                <Progress value={gatheringPercentage} className="h-2" />
               </div>
             </div>
           </div>
         </Card>
 
+        {/* Keep the rest of the components unchanged for now */}
         {/* Fame Progression Graph */}
         <Card className="bg-[#0D1117] border-zinc-800/50 p-4 rounded-lg">
           <h3 className="font-semibold mb-4">Fame Progression</h3>
@@ -265,24 +275,8 @@ export default function PlayerProfile({ playerName, region }: PlayerProfileProps
             <History className="h-5 w-5 text-[#00E6B4]" />
             <h3 className="font-semibold">Guild History</h3>
           </div>
-          <div className="space-y-4">
-            {guildHistory.map((guild) => (
-              <div key={guild.id} className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={`/placeholder.svg?text=${guild.name.charAt(0)}`} />
-                  <AvatarFallback>{guild.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">{guild.name}</span>
-                    <span className="text-xs text-zinc-400">{guild.duration}</span>
-                  </div>
-                  <div className="text-xs text-zinc-400">
-                    {guild.joinDate} - {guild.leaveDate}
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="text-sm text-zinc-400 text-center py-4">
+            Guild history will be available soon
           </div>
         </Card>
       </div>
