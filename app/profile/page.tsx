@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-react'
@@ -14,6 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+
+declare global {
+  interface Window {
+    activeEventSource: EventSource | null;
+  }
+}
 
 const ALBION_REGIONS = [
   { id: 'west', name: 'West', server: 'https://west.albion-online-data.com' },
@@ -36,14 +42,37 @@ interface PlayerData {
   region: string
 }
 
+interface CacheStatus {
+  isStale: boolean
+  isUpdating: boolean
+}
+
+interface SuccessResponse {
+  data: PlayerData
+  cacheStatus: CacheStatus
+}
+
+interface ErrorResponse {
+  error: string
+  details?: string
+}
+
+type ApiResponse = SuccessResponse | ErrorResponse
+
+function isErrorResponse(response: ApiResponse): response is ErrorResponse {
+  return 'error' in response
+}
+
 export default function Profile() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [playerName, setPlayerName] = useState('')
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerData | null>(null)
+  const [cacheStatus, setCacheStatus] = useState<CacheStatus>({ isStale: false, isUpdating: true })
   const [region, setRegion] = useState('west')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const eventSourceRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
     const nameParam = searchParams.get('name')
@@ -56,6 +85,7 @@ export default function Profile() {
       }
       handleSearch(nameParam, regionParam || region)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
   const handleSearch = async (name = playerName, selectedRegion = region) => {
@@ -64,24 +94,66 @@ export default function Profile() {
     setIsLoading(true)
     setError(null)
 
-    try {
-      const response = await fetch(`/api/player/${encodeURIComponent(name)}?region=${selectedRegion}`)
-      const data = await response.json()
+    // Close existing EventSource if any
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+      eventSourceRef.current = null
+    }
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch player data')
+    try {
+      // Start SSE connection first
+      const eventSource = new EventSource(
+        `/api/player/${encodeURIComponent(name)}/updates?region=${selectedRegion}`
+      )
+      eventSourceRef.current = eventSource
+
+      eventSource.onmessage = (event) => {
+        const update = JSON.parse(event.data)
+        if ('error' in update) {
+          setCacheStatus({ isStale: true, isUpdating: false })
+        } else {
+          setSelectedPlayer(update.data)
+          setCacheStatus(update.cacheStatus)
+        }
       }
 
-      setSelectedPlayer(data)
+      eventSource.onerror = () => {
+        eventSource.close()
+        setCacheStatus(prev => ({ ...prev, isUpdating: false, isStale: true }))
+      }
+
+      // Make the initial request
+      const response = await fetch(`/api/player/${encodeURIComponent(name)}?region=${selectedRegion}`)
+      const data = await response.json() as ApiResponse
+
+      if (!response.ok || isErrorResponse(data)) {
+        const errorMessage = isErrorResponse(data) ? data.error : 'Failed to fetch player data'
+        throw new Error(errorMessage)
+      }
+
+      setSelectedPlayer(data.data)
+      setCacheStatus(data.cacheStatus)
+
       // Update URL with search parameters
       router.push(`/profile?name=${encodeURIComponent(name)}&region=${selectedRegion}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
       setSelectedPlayer(null)
+      setCacheStatus({ isStale: false, isUpdating: false })
     } finally {
       setIsLoading(false)
     }
   }
+
+  // Clean up EventSource on unmount
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
+      }
+    }
+  }, [])
 
   const handleRegionChange = (newRegion: string) => {
     setRegion(newRegion)
@@ -158,6 +230,7 @@ export default function Profile() {
             playerData={selectedPlayer} 
             region={region}
             shareUrl={`${window.location.origin}/profile?name=${encodeURIComponent(playerName)}&region=${region}`}
+            cacheStatus={cacheStatus}
           />
         )}
       </div>

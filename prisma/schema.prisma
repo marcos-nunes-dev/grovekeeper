@@ -27,3 +27,15 @@ model GuildHistory {
   @@index([playerName])
   @@index([eventDate])
 }
+
+model PlayerCache {
+  id          String   @id @default(cuid())
+  playerName  String   @unique
+  guildName   String?
+  killFame    BigInt
+  deathFame   BigInt
+  pveTotal    BigInt
+  updatedAt   DateTime @default(now())
+
+  @@index([playerName])
+}

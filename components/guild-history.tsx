@@ -1,29 +1,56 @@
 import { Card } from "@/components/ui/card"
-import { History, AlertCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { History, AlertCircle, Loader2 } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface GuildHistoryEntry {
   name: string
   seenAt: string
 }
 
+interface CacheStatus {
+  isStale: boolean
+  isUpdating: boolean
+}
+
+interface SuccessResponse {
+  data: GuildHistoryEntry[]
+  cacheStatus: CacheStatus
+}
+
+interface ErrorResponse {
+  error: string
+  details?: string
+}
+
+type ApiResponse = SuccessResponse | ErrorResponse
+
+function isErrorResponse(response: ApiResponse): response is ErrorResponse {
+  return 'error' in response
+}
+
 interface GuildHistoryProps {
   playerName: string
   region: string
+  currentGuild?: string
 }
 
-export default function GuildHistory({ playerName, region }: GuildHistoryProps) {
+export default function GuildHistory({ playerName, region, currentGuild }: GuildHistoryProps) {
   const [loading, setLoading] = useState(true)
   const [guildHistory, setGuildHistory] = useState<GuildHistoryEntry[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [retryCount, setRetryCount] = useState(0)
-  const MAX_RETRIES = 3
+  const [cacheStatus, setCacheStatus] = useState<CacheStatus>({ isStale: false, isUpdating: true })
+  const eventSourceRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
     let isMounted = true
-    let retryTimeout: NodeJS.Timeout
 
     async function fetchGuildHistory() {
       try {
@@ -31,22 +58,47 @@ export default function GuildHistory({ playerName, region }: GuildHistoryProps) 
         setLoading(true)
         setError(null)
 
-        const response = await fetch(`/api/player/${playerName}/history?region=${region}`)
-        const data = await response.json()
+        // Close existing EventSource if any
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close()
+          eventSourceRef.current = null
+        }
 
-        if (!response.ok) {
-          if (response.status === 504 && retryCount < MAX_RETRIES) {
-            // Handle timeout by retrying
-            setRetryCount(prev => prev + 1)
-            retryTimeout = setTimeout(fetchGuildHistory, 2000) // Retry after 2 seconds
-            return
+        // Start SSE connection first
+        const eventSource = new EventSource(
+          `/api/player/${encodeURIComponent(playerName)}/history/updates?region=${region}`
+        )
+        eventSourceRef.current = eventSource
+
+        eventSource.onmessage = (event) => {
+          const update = JSON.parse(event.data)
+          if ('error' in update) {
+            setCacheStatus({ isStale: true, isUpdating: false })
+          } else {
+            setGuildHistory(update.data)
+            setCacheStatus(update.cacheStatus)
           }
-          throw new Error(data.error || 'Failed to fetch guild history')
+        }
+
+        eventSource.onerror = () => {
+          eventSource.close()
+          setCacheStatus(prev => ({ ...prev, isUpdating: false, isStale: true }))
+        }
+
+        // Make the initial request
+        const response = await fetch(
+          `/api/player/${encodeURIComponent(playerName)}/history?region=${region}&currentGuild=${encodeURIComponent(currentGuild || '')}`
+        )
+        const data = await response.json() as ApiResponse
+
+        if (!response.ok || isErrorResponse(data)) {
+          const errorMessage = isErrorResponse(data) ? data.error : 'Failed to fetch guild history'
+          throw new Error(errorMessage)
         }
 
         if (!isMounted) return
-        setGuildHistory(data)
-        setRetryCount(0) // Reset retry count on success
+        setGuildHistory(data.data)
+        setCacheStatus(data.cacheStatus)
       } catch (err) {
         if (!isMounted) return
         console.error('Error fetching guild history:', err)
@@ -63,29 +115,36 @@ export default function GuildHistory({ playerName, region }: GuildHistoryProps) 
 
     return () => {
       isMounted = false
-      if (retryTimeout) {
-        clearTimeout(retryTimeout)
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
       }
     }
-  }, [playerName, region, retryCount])
+  }, [playerName, region, currentGuild])
 
   return (
     <Card className="bg-[#0D1117] border-zinc-800/50 p-4 rounded-lg">
       <div className="flex items-center gap-2 mb-4">
         <History className="h-5 w-5 text-[#00E6B4]" />
         <h3 className="font-semibold">Guild History</h3>
+        {cacheStatus.isUpdating ? (
+          <Loader2 className="h-4 w-4 ml-auto animate-spin text-[#00E6B4]" />
+        ) : cacheStatus.isStale && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <AlertCircle className="h-4 w-4 ml-auto text-yellow-500" />
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Albion API is unstable, this data may be stale</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
       {loading ? (
         <div className="space-y-4">
-          {retryCount > 0 && (
-            <Alert variant="default" className="bg-yellow-500/10 border-yellow-500/20 text-yellow-500 mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Loading is taking longer than usual... (Attempt {retryCount}/{MAX_RETRIES})
-              </AlertDescription>
-            </Alert>
-          )}
           {[...Array(3)].map((_, i) => (
             <div key={i} className="flex items-center gap-3 animate-pulse">
               <div className="h-10 w-10 rounded-full bg-zinc-800/50" />

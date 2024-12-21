@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
-import { Share2, Sword, Users, Coins, Check } from 'lucide-react'
+import { Share2, Sword, Users, Coins, Check, Loader2, AlertCircle } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import Image from 'next/image'
 import { useState } from 'react'
@@ -28,10 +28,16 @@ interface PlayerData {
   region: string
 }
 
+interface CacheStatus {
+  isStale: boolean
+  isUpdating: boolean
+}
+
 interface PlayerProfileProps {
   playerData: PlayerData
   region: string
   shareUrl: string
+  cacheStatus: CacheStatus
 }
 
 // Mock data that we'll replace with real data in the future
@@ -91,7 +97,7 @@ function formatFame(fame: number): string {
   return fame.toString()
 }
 
-export default function PlayerProfile({ playerData, region, shareUrl }: PlayerProfileProps) {
+export default function PlayerProfile({ playerData, region, shareUrl, cacheStatus }: PlayerProfileProps) {
   const [copied, setCopied] = useState(false)
 
   const handleShare = async () => {
@@ -125,8 +131,6 @@ export default function PlayerProfile({ playerData, region, shareUrl }: PlayerPr
   const pvePercentage = (playerData.pveTotal / totalFame) * 100
   const gatheringPercentage = (playerData.gatheringTotal / totalFame) * 100
 
-  console.log(playerData)
-
   return (
     <div className="grid grid-cols-12 gap-4">
       {/* Left Sidebar */}
@@ -151,9 +155,25 @@ export default function PlayerProfile({ playerData, region, shareUrl }: PlayerPr
                   className="absolute top-0 left-0 w-full h-full object-contain"
                 />
               </div>
-              <div>
-                <h2 className="text-xl font-bold">{playerData.name}</h2>
-                <p className="text-sm text-zinc-400">{region}</p>
+              <div className="flex items-start gap-2">
+                <div className="flex flex-col">
+                  <h2 className="text-xl font-bold">{playerData.name}</h2>
+                  <p className="text-sm text-zinc-400">{region}</p>
+                </div>
+                {cacheStatus.isUpdating ? (
+                  <Loader2 className="h-4 w-4 mt-2 animate-spin text-[#00E6B4]" />
+                ) : cacheStatus.isStale && (
+                  <TooltipProvider>
+                    <UITooltip>
+                      <TooltipTrigger>
+                        <AlertCircle className="h-4 w-4 mt-2 text-yellow-500" />
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p>Albion API is unstable, this data may be stale</p>
+                      </TooltipContent>
+                    </UITooltip>
+                  </TooltipProvider>
+                )}                
               </div>
             </div>
             <div className="relative">
@@ -271,7 +291,11 @@ export default function PlayerProfile({ playerData, region, shareUrl }: PlayerPr
         </Card>
 
         {/* Guild History Widget */}
-        <GuildHistory playerName={playerData.name} region={region} />
+        <GuildHistory 
+          playerName={playerData.name} 
+          region={region} 
+          currentGuild={playerData.guildName}
+        />
       </div>
 
       {/* Main Content */}
