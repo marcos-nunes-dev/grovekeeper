@@ -35,6 +35,17 @@ interface AlbionPlayerResponse {
 const ALBION_API = "https://gameinfo.albiononline.com/api/gameinfo";
 
 async function findPlayer(playerName: string): Promise<string> {
+  // First check if we have this player in our cache
+  const cachedPlayer = await prisma.playerCache.findUnique({
+    where: { playerName: playerName.toLowerCase() },
+    select: { id: true }
+  });
+
+  if (cachedPlayer) {
+    return cachedPlayer.id;
+  }
+
+  // If not in cache, search in Albion API
   const searchUrl = `${ALBION_API}/search?q=${encodeURIComponent(playerName)}`;
   const response = await fetch(searchUrl);
 
@@ -87,7 +98,7 @@ async function formatPlayerData(data: AlbionPlayerResponse, region: string) {
 async function getCachedPlayer(playerName: string) {
   try {
     return await prisma.playerCache.findUnique({
-      where: { playerName },
+      where: { playerName: playerName.toLowerCase() },
     });
   } catch (error) {
     console.error("Failed to get cached player:", error);
@@ -99,14 +110,15 @@ async function updatePlayerCache(data: AlbionPlayerResponse) {
   try {
     await prisma.playerCache.upsert({
       where: {
-        playerName: data.Name,
+        playerName: data.Name.toLowerCase(),
       },
       create: {
-        playerName: data.Name,
+        playerName: data.Name.toLowerCase(),
         guildName: data.GuildName,
         killFame: BigInt(Math.floor(data.KillFame)),
         deathFame: BigInt(Math.floor(data.DeathFame)),
         pveTotal: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
+        hasDeepSearch: false
       },
       update: {
         guildName: data.GuildName,
@@ -119,7 +131,7 @@ async function updatePlayerCache(data: AlbionPlayerResponse) {
     return true;
   } catch (error) {
     console.error("Failed to update player cache:", error);
-    return false;
+    return null;
   }
 }
 

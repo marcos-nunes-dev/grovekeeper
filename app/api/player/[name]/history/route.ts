@@ -22,6 +22,7 @@ interface MurderLedgerResponse {
 
 const EVENTS_PER_PAGE = 20
 const MAX_PAGES = 50
+const DEEP_SEARCH_MAX_PAGES = 500
 const DELAY_BETWEEN_REQUESTS = 300
 
 async function fetchEvents(playerName: string, skip: number): Promise<MurderLedgerResponse> {
@@ -35,11 +36,12 @@ async function fetchEvents(playerName: string, skip: number): Promise<MurderLedg
   return response.json()
 }
 
-async function fetchAllEvents(playerName: string): Promise<MurderLedgerEvent[]> {
+async function fetchAllEvents(playerName: string, isDeepSearch: boolean = false): Promise<MurderLedgerEvent[]> {
   let allEvents: MurderLedgerEvent[] = []
   let page = 0
+  const maxPages = isDeepSearch ? DEEP_SEARCH_MAX_PAGES : MAX_PAGES
   
-  while (page < MAX_PAGES) {
+  while (page < maxPages) {
     const skip = page * EVENTS_PER_PAGE
     
     try {
@@ -69,11 +71,111 @@ export async function GET(
   const playerName = params.name
   const { searchParams } = new URL(request.url)
   const currentGuild = searchParams.get("currentGuild") || ""
+  const isDeepSearch = searchParams.get("deep") === "true"
   
   try {
+    // Check player cache for deep search status first
+    const playerCache = await prisma.playerCache.findUnique({
+      where: { playerName: playerName.toLowerCase() },
+    })
+
+    // For deep search, first check if it's already been done
+    if (isDeepSearch) {
+      if (playerCache?.hasDeepSearch) {
+        return NextResponse.json({
+          data: [],
+          error: "Historical data has already been fetched for this player",
+          cacheStatus: {
+            isStale: false,
+            isUpdating: false
+          }
+        })
+      }
+
+      const events = await fetchAllEvents(playerName, true)
+      
+      if (!events.length) {
+        return NextResponse.json({
+          data: [],
+          cacheStatus: {
+            isStale: false,
+            isUpdating: false
+          }
+        })
+      }
+
+      // Extract unique guilds with latest timestamps
+      const guildMap = new Map<string, Date>()
+      
+      events.forEach(event => {
+        const timestamp = new Date(event.time * 1000)
+        let guild: string | null = null
+
+        if (event.killer.name.toLowerCase() === playerName.toLowerCase()) {
+          guild = event.killer.guild_name
+        } else if (event.victim.name.toLowerCase() === playerName.toLowerCase()) {
+          guild = event.victim.guild_name
+        }
+
+        if (guild) {
+          const currentTimestamp = guildMap.get(guild)
+          if (!currentTimestamp || timestamp > currentTimestamp) {
+            guildMap.set(guild, timestamp)
+          }
+        }
+      })
+
+      // Save to database
+      const guildEntries = Array.from(guildMap.entries()).map(([guildName, eventDate]) => ({
+        playerName: playerName.toLowerCase(),
+        guildName,
+        eventDate
+      }))
+
+      if (guildEntries.length > 0) {
+        await prisma.guildHistory.createMany({
+          data: guildEntries,
+          skipDuplicates: true
+        })
+      }
+
+      // Mark that deep search has been performed
+      if (playerCache) {
+        await prisma.playerCache.update({
+          where: { playerName: playerName.toLowerCase() },
+          data: { hasDeepSearch: true }
+        })
+      } else {
+        await prisma.playerCache.create({
+          data: {
+            playerName: playerName.toLowerCase(),
+            hasDeepSearch: true,
+            killFame: BigInt(0),
+            deathFame: BigInt(0),
+            pveTotal: BigInt(0)
+          }
+        })
+      }
+
+      const formattedEntries = guildEntries.map(entry => ({
+        name: entry.guildName,
+        seenAt: entry.eventDate.toLocaleDateString()
+      }))
+
+      return NextResponse.json({
+        data: formattedEntries,
+        cacheStatus: {
+          isStale: false,
+          isUpdating: false
+        },
+        hasDeepSearched: true
+      })
+    }
+
+    // Regular flow for non-deep searches
     // Check existing history first
     const existingHistory = await prisma.guildHistory.findMany({
-      where: { playerName },
+      where: { playerName: playerName.toLowerCase() },
       orderBy: { eventDate: 'desc' },
       distinct: ['guildName'],
       select: {
@@ -96,7 +198,8 @@ export async function GET(
           cacheStatus: {
             isStale: false,
             isUpdating: false
-          }
+          },
+          hasDeepSearched: playerCache?.hasDeepSearch || false
         })
       }
 
@@ -113,7 +216,8 @@ export async function GET(
               cacheStatus: {
                 isStale: false,
                 isUpdating: false
-              }
+              },
+              hasDeepSearched: playerCache?.hasDeepSearch || false
             })
           } else {
             // Send cache status update
@@ -122,7 +226,8 @@ export async function GET(
               cacheStatus: {
                 isStale: false,
                 isUpdating: false
-              }
+              },
+              hasDeepSearched: playerCache?.hasDeepSearch || false
             })
           }
         })
@@ -133,7 +238,8 @@ export async function GET(
             cacheStatus: {
               isStale: true,
               isUpdating: false
-            }
+            },
+            hasDeepSearched: playerCache?.hasDeepSearch || false
           })
         })
 
@@ -143,7 +249,8 @@ export async function GET(
         cacheStatus: {
           isStale: false,
           isUpdating: true
-        }
+        },
+        hasDeepSearched: playerCache?.hasDeepSearch || false
       })
     }
 
@@ -183,7 +290,7 @@ export async function GET(
 
     // Save to database
     const guildEntries = Array.from(guildMap.entries()).map(([guildName, eventDate]) => ({
-      playerName,
+      playerName: playerName.toLowerCase(),
       guildName,
       eventDate
     }))

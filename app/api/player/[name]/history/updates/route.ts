@@ -19,6 +19,7 @@ interface UpdateMessage {
     isStale: boolean;
     isUpdating: boolean;
   };
+  hasDeepSearched?: boolean;
 }
 
 export async function GET(

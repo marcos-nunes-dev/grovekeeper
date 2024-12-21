@@ -35,6 +35,7 @@ model PlayerCache {
   killFame    BigInt
   deathFame   BigInt
   pveTotal    BigInt
+  hasDeepSearch Boolean @default(false)
   updatedAt   DateTime @default(now())
 
   @@index([playerName])
