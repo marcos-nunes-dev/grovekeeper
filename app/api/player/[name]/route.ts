@@ -35,17 +35,7 @@ interface AlbionPlayerResponse {
 const ALBION_API = "https://gameinfo.albiononline.com/api/gameinfo";
 
 async function findPlayer(playerName: string): Promise<string> {
-  // First check if we have this player in our cache
-  const cachedPlayer = await prisma.playerCache.findUnique({
-    where: { playerName: playerName.toLowerCase() },
-    select: { id: true }
-  });
-
-  if (cachedPlayer) {
-    return cachedPlayer.id;
-  }
-
-  // If not in cache, search in Albion API
+  // Always search in Albion API first to get the latest player ID
   const searchUrl = `${ALBION_API}/search?q=${encodeURIComponent(playerName)}`;
   const response = await fetch(searchUrl);
 
@@ -60,6 +50,19 @@ async function findPlayer(playerName: string): Promise<string> {
 
   if (!player) {
     throw new Error("Player not found");
+  }
+
+  // Update the cache with the correct player ID
+  const cachedPlayer = await prisma.playerCache.findUnique({
+    where: { playerName: playerName.toLowerCase() },
+  });
+
+  if (cachedPlayer && cachedPlayer.id !== player.Id) {
+    // If the cached ID is different, update it
+    await prisma.playerCache.update({
+      where: { playerName: playerName.toLowerCase() },
+      data: { id: player.Id },
+    });
   }
 
   return player.Id;
@@ -113,6 +116,7 @@ async function updatePlayerCache(data: AlbionPlayerResponse) {
         playerName: data.Name.toLowerCase(),
       },
       create: {
+        id: data.Id,
         playerName: data.Name.toLowerCase(),
         guildName: data.GuildName,
         killFame: BigInt(Math.floor(data.KillFame)),
@@ -121,6 +125,7 @@ async function updatePlayerCache(data: AlbionPlayerResponse) {
         hasDeepSearch: false
       },
       update: {
+        id: data.Id,
         guildName: data.GuildName,
         killFame: BigInt(Math.floor(data.KillFame)),
         deathFame: BigInt(Math.floor(data.DeathFame)),

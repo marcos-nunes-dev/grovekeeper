@@ -29,7 +29,7 @@ model GuildHistory {
 }
 
 model PlayerCache {
-  id          String   @id @default(cuid())
+  id          String   @id
   playerName  String   @unique
   guildName   String?
   killFame    BigInt
