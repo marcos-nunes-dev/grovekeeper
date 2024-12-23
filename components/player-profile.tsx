@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Share2, Sword, Users, Coins, Check, Loader2, AlertCircle } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import Image from 'next/image'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Tooltip as UITooltip,
   TooltipContent,
@@ -12,6 +12,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import GuildHistory from './guild-history'
+import { useEventSource } from '@/lib/hooks/useEventSource'
+import { getCacheStatus } from '@/lib/utils/cache'
 
 interface PlayerData {
   id: string
@@ -35,6 +37,8 @@ interface CacheStatus {
 
 interface PlayerProfileProps {
   playerData: PlayerData
+  events: MurderLedgerEvent[]
+  isCheckingNewEvents: boolean
   region: string
   shareUrl: string
   cacheStatus: CacheStatus
@@ -345,71 +349,14 @@ function EventSkeleton() {
 
 export default function PlayerProfile({ 
   playerData, 
+  events,
+  isCheckingNewEvents,
   region, 
   shareUrl, 
   cacheStatus = { isStale: false, isUpdating: false }
 }: PlayerProfileProps) {
   const [copied, setCopied] = useState(false)
-  const [recentEvents, setRecentEvents] = useState<MurderLedgerEvent[]>([])
-  const [isLoadingInitial, setIsLoadingInitial] = useState(true)
-  const [isCheckingNewEvents, setIsCheckingNewEvents] = useState(false)
-  const eventSourceRef = useRef<EventSource | null>(null)
-
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const response = await fetch(`/api/player/${playerData.name}/events?limit=10`)
-        const data = await response.json() as EventsResponse
-        
-        if ('data' in data) {
-          setRecentEvents(data.data)
-          setIsCheckingNewEvents(data.isCheckingNewEvents)
-
-          // Set up SSE connection for updates
-          if (data.isCheckingNewEvents) {
-            const eventSource = new EventSource(`/api/player/${playerData.name}/events/updates?region=${region}`)
-            eventSourceRef.current = eventSource
-
-            eventSource.onmessage = (event) => {
-              const update = JSON.parse(event.data)
-              if ('data' in update) {
-                setRecentEvents(update.data)
-              }
-              setIsCheckingNewEvents(update.isCheckingNewEvents || false)
-
-              // If we're done checking or there's an error, close the connection
-              if (!update.isCheckingNewEvents || update.error) {
-                eventSource.close()
-                eventSourceRef.current = null
-              }
-            }
-
-            eventSource.onerror = () => {
-              setIsCheckingNewEvents(false)
-              eventSource.close()
-              eventSourceRef.current = null
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching events:', error)
-        setIsCheckingNewEvents(false)
-      } finally {
-        setIsLoadingInitial(false)
-      }
-    }
-
-    if (playerData.name) {
-      fetchEvents()
-    }
-
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
-        eventSourceRef.current = null
-      }
-    }
-  }, [playerData.name, region])
+  const [isLoadingInitial, setIsLoadingInitial] = useState(false)
 
   const formatTimeAgo = (timestamp: number) => {
     const seconds = Math.floor((Date.now() - timestamp * 1000) / 1000)
@@ -629,7 +576,7 @@ export default function PlayerProfile({
               <EventSkeleton key={i} />
             ))}
           </div>
-        ) : recentEvents.length === 0 ? (
+        ) : events.length === 0 ? (
           // Empty state
           <Card className="bg-[#0D1117] border-zinc-800/50 p-6 rounded-lg">
             <div className="text-center text-zinc-400">
@@ -640,7 +587,7 @@ export default function PlayerProfile({
           // Events list with potential loading state for new events
           <div className="space-y-3">
             {isCheckingNewEvents && <EventSkeleton />}
-            {recentEvents.map((event: MurderLedgerEvent) => {
+            {events.map((event: MurderLedgerEvent) => {
               const isKiller = event.killer.name.toLowerCase() === (playerData?.name || '').toLowerCase();
               const loadout = isKiller ? event.killer.loadout : event.victim.loadout;
               

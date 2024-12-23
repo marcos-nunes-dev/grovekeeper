@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-react'
@@ -14,6 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useEventSource } from '@/lib/hooks/useEventSource'
+import { getCacheStatus } from '@/lib/utils/cache'
+import { MurderLedgerEvent, EventsResponse } from '@/components/player-profile'
 
 declare global {
   interface Window {
@@ -63,16 +66,72 @@ function isErrorResponse(response: ApiResponse): response is ErrorResponse {
   return 'error' in response
 }
 
+interface PlayerWithEvents extends PlayerData {
+  events?: MurderLedgerEvent[]
+}
+
+interface SuccessResponse {
+  data: PlayerWithEvents
+  cacheStatus: CacheStatus
+  isCheckingNewEvents?: boolean
+}
+
 export default function Profile() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [playerName, setPlayerName] = useState('')
-  const [selectedPlayer, setSelectedPlayer] = useState<PlayerData | null>(null)
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerWithEvents | null>(null)
   const [cacheStatus, setCacheStatus] = useState<CacheStatus>({ isStale: false, isUpdating: true })
   const [region, setRegion] = useState('west')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const eventSourceRef = useRef<EventSource | null>(null)
+  const [isCheckingNewEvents, setIsCheckingNewEvents] = useState(false)
+
+  // Use our custom hook for EventSource
+  useEventSource<ApiResponse>(
+    selectedPlayer ? `/api/player/${encodeURIComponent(selectedPlayer.name)}/updates?region=${region}` : null,
+    (update) => {
+      if ('error' in update) {
+        setCacheStatus({ isStale: true, isUpdating: false })
+      } else {
+        // Only update the player data, preserve the events
+        setSelectedPlayer(prev => prev ? {
+          ...update.data,
+          events: prev.events
+        } : update.data)
+        setCacheStatus(update.cacheStatus)
+      }
+    },
+    {
+      retryOnError: true,
+      maxRetries: 3,
+      onError: () => {
+        setCacheStatus(prev => ({ ...prev, isUpdating: false, isStale: true }))
+      }
+    }
+  )
+
+  // Separate event source for events updates
+  useEventSource<EventsResponse>(
+    selectedPlayer && isCheckingNewEvents ? 
+      `/api/player/${encodeURIComponent(selectedPlayer.name)}/events/updates?region=${region}` : null,
+    (update) => {
+      if ('data' in update) {
+        setSelectedPlayer(prev => prev ? {
+          ...prev,
+          events: update.data
+        } : null)
+      }
+      setIsCheckingNewEvents(update.isCheckingNewEvents || false)
+    },
+    {
+      retryOnError: true,
+      maxRetries: 3,
+      onError: () => {
+        setIsCheckingNewEvents(false)
+      }
+    }
+  )
 
   useEffect(() => {
     const nameParam = searchParams.get('name')
@@ -94,34 +153,7 @@ export default function Profile() {
     setIsLoading(true)
     setError(null)
 
-    // Close existing EventSource if any
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close()
-      eventSourceRef.current = null
-    }
-
     try {
-      // Start SSE connection first
-      const eventSource = new EventSource(
-        `/api/player/${encodeURIComponent(name)}/updates?region=${selectedRegion}`
-      )
-      eventSourceRef.current = eventSource
-
-      eventSource.onmessage = (event) => {
-        const update = JSON.parse(event.data)
-        if ('error' in update) {
-          setCacheStatus({ isStale: true, isUpdating: false })
-        } else {
-          setSelectedPlayer(update.data)
-          setCacheStatus(update.cacheStatus)
-        }
-      }
-
-      eventSource.onerror = () => {
-        eventSource.close()
-        setCacheStatus(prev => ({ ...prev, isUpdating: false, isStale: true }))
-      }
-
       // Make the initial request
       const response = await fetch(`/api/player/${encodeURIComponent(name)}?region=${selectedRegion}`)
       const data = await response.json() as ApiResponse
@@ -131,8 +163,16 @@ export default function Profile() {
         throw new Error(errorMessage)
       }
 
-      setSelectedPlayer(data.data)
+      // Fetch initial events
+      const eventsResponse = await fetch(`/api/player/${encodeURIComponent(name)}/events?limit=10`)
+      const eventsData = await eventsResponse.json() as EventsResponse
+
+      setSelectedPlayer({
+        ...data.data,
+        events: eventsData.data
+      })
       setCacheStatus(data.cacheStatus)
+      setIsCheckingNewEvents(eventsData.isCheckingNewEvents)
 
       // Update URL with search parameters
       router.push(`/profile?name=${encodeURIComponent(name)}&region=${selectedRegion}`)
@@ -144,16 +184,6 @@ export default function Profile() {
       setIsLoading(false)
     }
   }
-
-  // Clean up EventSource on unmount
-  useEffect(() => {
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
-        eventSourceRef.current = null
-      }
-    }
-  }, [])
 
   const handleRegionChange = (newRegion: string) => {
     setRegion(newRegion)
@@ -228,6 +258,8 @@ export default function Profile() {
         {selectedPlayer && !isLoading && (
           <PlayerProfile 
             playerData={selectedPlayer} 
+            events={selectedPlayer.events || []}
+            isCheckingNewEvents={isCheckingNewEvents}
             region={region}
             shareUrl={`${window.location.origin}/profile?name=${encodeURIComponent(playerName)}&region=${region}`}
             cacheStatus={cacheStatus}
