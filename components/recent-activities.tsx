@@ -107,6 +107,7 @@ function RecentActivities({ events, isCheckingNewEvents, isLoadingInitial, playe
                   {formatTimeAgo(event.time)}
                   {event.tags.fair && <span className="text-green-500">(Fair Fight)</span>}
                   {event.tags.unfair && <span className="text-yellow-500">(Unfair Fight)</span>}
+                  {event.tags.is_1v1 ? '1v1' : event.tags.is_2v2 ? '2v2' : event.tags.is_5v5 ? '5v5' : event.tags.is_zvz ? 'ZvZ' : 'PvP'}
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="w-3 h-3" />
@@ -151,13 +152,13 @@ function RecentActivities({ events, isCheckingNewEvents, isLoadingInitial, playe
                     <div className="text-lg font-bold">
                       {formatFame(event.total_kill_fame)}
                     </div>
-                    <div className="text-xs text-zinc-400">AMA</div>
+                    <div className="text-xs text-zinc-400">FAME</div>
                   </div>
                   <div className="flex flex-col items-center">
                     <div className="text-lg font-bold">
                       {event.killer.item_power}
                     </div>
-                    <div className="text-xs text-zinc-400">{event.tags.is_1v1 ? '1v1' : event.tags.is_2v2 ? '2v2' : event.tags.is_5v5 ? '5v5' : event.tags.is_zvz ? 'ZvZ' : 'PvP'}</div>
+                    <div className="text-xs text-zinc-400">IP</div>
                   </div>
                 </div>
               </div>
