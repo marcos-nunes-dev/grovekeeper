@@ -122,6 +122,8 @@ async function updatePlayerCache(data: AlbionPlayerResponse) {
         killFame: BigInt(Math.floor(data.KillFame)),
         deathFame: BigInt(Math.floor(data.DeathFame)),
         pveTotal: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
+        gatheringTotal: BigInt(Math.floor(data.LifetimeStatistics?.Gathering?.All?.Total || 0)),
+        craftingTotal: BigInt(Math.floor(data.LifetimeStatistics?.Crafting?.Total || 0)),
         hasDeepSearch: false
       },
       update: {
@@ -130,6 +132,8 @@ async function updatePlayerCache(data: AlbionPlayerResponse) {
         killFame: BigInt(Math.floor(data.KillFame)),
         deathFame: BigInt(Math.floor(data.DeathFame)),
         pveTotal: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
+        gatheringTotal: BigInt(Math.floor(data.LifetimeStatistics?.Gathering?.All?.Total || 0)),
+        craftingTotal: BigInt(Math.floor(data.LifetimeStatistics?.Crafting?.Total || 0)),
         updatedAt: new Date(),
       },
     });

@@ -393,10 +393,11 @@ export default function PlayerProfile({
   }
 
   // Calculate fame percentages for progress bars
-  const totalFame = playerData.killFame + playerData.pveTotal + playerData.gatheringTotal
+  const totalFame = playerData.killFame + playerData.pveTotal + playerData.gatheringTotal + playerData.craftingTotal
   const pvpPercentage = (playerData.killFame / totalFame) * 100
   const pvePercentage = (playerData.pveTotal / totalFame) * 100
   const gatheringPercentage = (playerData.gatheringTotal / totalFame) * 100
+  const craftingPercentage = (playerData.craftingTotal / totalFame) * 100
 
   return (
     <div className="grid grid-cols-12 gap-4">
@@ -511,6 +512,13 @@ export default function PlayerProfile({
                   <span className="text-[#00E6B4]">{formatFame(playerData.gatheringTotal)}</span>
                 </div>
                 <Progress value={gatheringPercentage} className="h-2" />
+              </div>
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Crafting Fame</span>
+                  <span className="text-[#00E6B4]">{formatFame(playerData.craftingTotal)}</span>
+                </div>
+                <Progress value={craftingPercentage} className="h-2" />
               </div>
             </div>
           </div>

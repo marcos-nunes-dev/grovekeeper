@@ -35,6 +35,8 @@ model PlayerCache {
   killFame    BigInt
   deathFame   BigInt
   pveTotal    BigInt
+  gatheringTotal BigInt @default(0)
+  craftingTotal BigInt @default(0)
   hasDeepSearch Boolean @default(false)
   updatedAt   DateTime @default(now())
 
