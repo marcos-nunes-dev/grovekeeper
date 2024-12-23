@@ -40,3 +40,17 @@ model PlayerCache {
 
   @@index([playerName])
 }
+
+model PlayerEvent {
+  id          String   @id // Murder Ledger event ID
+  playerId    String   // Player's ID for efficient querying
+  playerName  String   // Player's name for efficient querying
+  timestamp   DateTime // Event timestamp for ordering and comparing
+  eventType   String   // "KILL" or "DEATH" for filtering
+  eventData   Json     // Full event data as JSON
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([playerId, timestamp(sort: Desc)]) // For efficient querying of player's latest events
+  @@index([playerName, timestamp(sort: Desc)]) // For efficient querying by player name
+}

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Share2, Sword, Users, Coins, Check, Loader2, AlertCircle } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Tooltip as UITooltip,
   TooltipContent,
@@ -38,6 +38,205 @@ interface PlayerProfileProps {
   region: string
   shareUrl: string
   cacheStatus: CacheStatus
+}
+
+interface MurderLedgerEvent {
+  id: number
+  time: number
+  battle_id: number
+  killer: {
+    name: string
+    item_power: number
+    guild_name: string | null
+    alliance_name: string | null
+    loadout: {
+      main_hand?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      off_hand?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      head?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      body?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      shoe?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      bag?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      cape?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      mount?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      food?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      potion?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+    }
+    vod: string
+    is_primary: boolean
+    kill_fame: number
+    damage_done: number
+    healing_done: number
+  }
+  victim: {
+    name: string
+    item_power: number
+    guild_name: string | null
+    alliance_name: string | null
+    loadout: {
+      main_hand?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      off_hand?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      head?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      body?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      shoe?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      bag?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      cape?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      mount?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      food?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+      potion?: {
+        id: string
+        type: string
+        tier: number
+        enchant: number
+        quality: number
+        en_name: string
+      }
+    }
+    vod: string
+  }
+  total_kill_fame: number
+  participant_count: number
+  party_size: number
+  tags: {
+    is_1v1: boolean
+    is_2v2: boolean
+    is_5v5: boolean
+    is_zvz: boolean
+    fair: boolean
+    unfair: boolean
+  }
 }
 
 // Mock data that we'll replace with real data in the future
@@ -99,6 +298,47 @@ function formatFame(fame: number): string {
 
 export default function PlayerProfile({ playerData, region, shareUrl, cacheStatus }: PlayerProfileProps) {
   const [copied, setCopied] = useState(false)
+  const [recentEvents, setRecentEvents] = useState<MurderLedgerEvent[]>([])
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true)
+  const eventSourceRef = useRef<EventSource | null>(null)
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      setIsLoadingEvents(true)
+      
+      try {
+        const response = await fetch(`/api/player/${playerData.name}/events?limit=10`)
+        const data = await response.json()
+        
+        if (data.data) {
+          setRecentEvents(data.data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch events:', error)
+      } finally {
+        setIsLoadingEvents(false)
+      }
+    }
+
+    if (playerData.name) {
+      fetchEvents()
+    }
+
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+      }
+    }
+  }, [playerData.name])
+
+  const formatTimeAgo = (timestamp: number) => {
+    const seconds = Math.floor((Date.now() - timestamp * 1000) / 1000)
+    
+    if (seconds < 60) return 'just now'
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
+    return `${Math.floor(seconds / 86400)}d ago`
+  }
 
   const handleShare = async () => {
     try {
@@ -130,6 +370,8 @@ export default function PlayerProfile({ playerData, region, shareUrl, cacheStatu
   const pvpPercentage = (playerData.killFame / totalFame) * 100
   const pvePercentage = (playerData.pveTotal / totalFame) * 100
   const gatheringPercentage = (playerData.gatheringTotal / totalFame) * 100
+
+  console.log(recentEvents)
 
   return (
     <div className="grid grid-cols-12 gap-4">
@@ -302,62 +544,103 @@ export default function PlayerProfile({ playerData, region, shareUrl, cacheStatu
       <div className="col-span-9 space-y-3">
         <h3 className="font-semibold text-lg px-1">Recent Activities</h3>
         
-        {recentActivities.map((activity, index) => (
-          <Card key={index} className={`bg-[#0D1117] border-zinc-800/50 p-3 rounded-lg ${
-            activity.result === 'Victory' ? 'border-green-500/20' : 'border-red-500/20'
-          }`}>
-            <div className="flex items-center gap-4">
-              {/* Activity Info */}
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`text-sm font-medium ${activity.result === 'Victory' ? 'text-green-500' : 'text-red-500'}`}>
-                    {activity.result}
-                  </span>
-                  <span className="text-sm text-zinc-400">{activity.type}</span>
-                  <span className="text-sm text-zinc-400">{activity.time}</span>
-                </div>
-                
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="text-2xl font-bold">
-                    {activity.kills}/{activity.deaths}/{activity.assists}
-                  </div>
-                  <div className="text-sm text-zinc-400">
-                    {activity.fame.toLocaleString()} Fame
-                  </div>
-                </div>
-
-                {/* Equipment */}
-                <div className="flex gap-2">
-                  {Object.entries(activity.equipment).map(([slot, item], i) => (
-                    <div key={i} className="w-10 h-10 bg-zinc-900 rounded border border-zinc-800">
-                      <Image
-                        src={`https://render.albiononline.com/v1/item/${item}.png`}
-                        alt={slot}
-                        width={40}
-                        height={40}
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Players */}
-              <div className="flex gap-8">
-                <div className="space-y-1">
-                  {activity.allies.map((ally, i) => (
-                    <div key={i} className="text-sm text-zinc-400">{ally}</div>
-                  ))}
-                </div>
-                <div className="space-y-1">
-                  {activity.enemies.map((enemy, i) => (
-                    <div key={i} className="text-sm text-zinc-400">{enemy}</div>
-                  ))}
-                </div>
-              </div>
+        {isLoadingEvents ? (
+          // Loading state
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i} className="bg-[#0D1117] border-zinc-800/50 p-3 rounded-lg animate-pulse">
+                <div className="h-32 bg-zinc-800/50 rounded" />
+              </Card>
+            ))}
+          </div>
+        ) : recentEvents.length === 0 ? (
+          // Empty state
+          <Card className="bg-[#0D1117] border-zinc-800/50 p-6 rounded-lg">
+            <div className="text-center text-zinc-400">
+              No recent activities found
             </div>
           </Card>
-        ))}
+        ) : (
+          // Events list
+          recentEvents.map((event) => {
+            const isKiller = event.killer.name.toLowerCase() === playerData.name.toLowerCase()
+            const loadout = isKiller ? event.killer.loadout : event.victim.loadout
+            
+            return (
+              <Card 
+                key={event.id} 
+                className={`bg-[#0D1117] border-zinc-800/50 p-3 rounded-lg ${
+                  isKiller ? 'border-green-500/20' : 'border-red-500/20'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  {/* Activity Info */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`text-sm font-medium ${isKiller ? 'text-green-500' : 'text-red-500'}`}>
+                        {isKiller ? 'Kill' : 'Death'}
+                      </span>
+                      <span className="text-sm text-zinc-400">
+                        {event.tags.is_1v1 ? '1v1' : 
+                         event.tags.is_2v2 ? '2v2' : 
+                         event.tags.is_5v5 ? '5v5' : 
+                         event.tags.is_zvz ? 'ZvZ' : 'PvP'}
+                      </span>
+                      <span className="text-sm text-zinc-400">{formatTimeAgo(event.time)}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="text-2xl font-bold">
+                        {isKiller ? '1/0/0' : '0/1/0'}
+                      </div>
+                      <div className="text-sm text-zinc-400">
+                        {formatFame(event.total_kill_fame)} Fame
+                      </div>
+                      <div className="text-sm text-zinc-400">
+                        IP: {isKiller ? event.killer.item_power : event.victim.item_power}
+                      </div>
+                      {event.participant_count > 2 && (
+                        <div className="text-sm text-zinc-400">
+                          {event.participant_count} Players
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Equipment */}
+                    <div className="flex gap-2">
+                      {Object.entries(loadout).map(([slot, item]) => {
+                        if (!item || ['food', 'potion'].includes(slot)) return null
+                        return (
+                          <div key={slot} className="w-10 h-10 bg-zinc-900 rounded border border-zinc-800">
+                            <Image
+                              src={`https://render.albiononline.com/v1/item/${item.id}.png`}
+                              alt={item.en_name}
+                              width={40}
+                              height={40}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Players */}
+                  <div className="flex gap-8">
+                    <div className="space-y-1">
+                      <div className="text-sm text-zinc-400">{event.killer.name}</div>
+                      <div className="text-xs text-zinc-500">{event.killer.guild_name || 'No Guild'}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm text-zinc-400">{event.victim.name}</div>
+                      <div className="text-xs text-zinc-500">{event.victim.guild_name || 'No Guild'}</div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )
+          })
+        )}
       </div>
 
       {/* Performance Stats */}
