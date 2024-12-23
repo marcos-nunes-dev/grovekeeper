@@ -344,22 +344,9 @@ function EventSkeleton() {
 }
 
 export default function PlayerProfile({ 
-  playerData = { 
-    id: '', 
-    name: '', 
-    guildName: '', 
-    allianceName: '', 
-    allianceTag: '', 
-    avatar: '',
-    killFame: 0,
-    deathFame: 0,
-    pveTotal: 0,
-    gatheringTotal: 0,
-    craftingTotal: 0,
-    region: ''
-  }, 
-  region = '', 
-  shareUrl = '', 
+  playerData, 
+  region, 
+  shareUrl, 
   cacheStatus = { isStale: false, isUpdating: false }
 }: PlayerProfileProps) {
   const [copied, setCopied] = useState(false)
@@ -380,13 +367,15 @@ export default function PlayerProfile({
 
           // Set up SSE connection for updates
           if (data.isCheckingNewEvents) {
-            const eventSource = new EventSource(`/api/player/${playerData.name}/updates?region=${region}`)
+            const eventSource = new EventSource(`/api/player/${playerData.name}/events/updates?region=${region}`)
             eventSourceRef.current = eventSource
 
             eventSource.onmessage = (event) => {
               const update = JSON.parse(event.data)
-              setRecentEvents(update.data)
-              setIsCheckingNewEvents(update.isCheckingNewEvents)
+              if ('data' in update) {
+                setRecentEvents(update.data)
+              }
+              setIsCheckingNewEvents(update.isCheckingNewEvents || false)
 
               // If we're done checking or there's an error, close the connection
               if (!update.isCheckingNewEvents || update.error) {

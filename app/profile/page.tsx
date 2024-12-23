@@ -225,7 +225,7 @@ export default function Profile() {
       </PageHero>
 
       <div className="container mx-auto px-4">
-        {selectedPlayer && (
+        {selectedPlayer && !isLoading && (
           <PlayerProfile 
             playerData={selectedPlayer} 
             region={region}
