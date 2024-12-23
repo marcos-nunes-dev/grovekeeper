@@ -1,8 +1,11 @@
 import { memo } from 'react';
 import Image from 'next/image';
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { RecentActivitiesProps } from '@/types/components';
 import { formatFame, formatTimeAgo } from '@/lib/utils/format';
+import { Skull, Swords, Heart, Shield, Users, Video, Clock, ExternalLink } from 'lucide-react';
+import { AlbionLoadout, AlbionItem } from '@/types/albion';
 
 function EventSkeleton({ count = 3 }) {
   return (
@@ -59,12 +62,35 @@ function RecentActivities({ events, isCheckingNewEvents, isLoadingInitial, playe
     );
   }
 
+  const renderEquipment = (loadout: AlbionLoadout) => {
+    const slots = ['main_hand', 'off_hand', 'head', 'body', 'shoe', 'bag', 'cape', 'mount'] as const;
+    return (
+      <div className="flex gap-1">
+        {slots.map((slot) => {
+          const item = loadout[slot];
+          if (!item?.id) return null;
+          
+          return (
+            <div key={slot} className="w-8 h-8 bg-zinc-900 rounded border border-zinc-800">
+              <Image
+                src={`https://render.albiononline.com/v1/item/${item.id}.png`}
+                alt={item.en_name}
+                width={32}
+                height={32}
+                className="w-full h-full object-contain"
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-3">
       {isCheckingNewEvents && <EventSkeleton count={1} />}
       {events.map((event) => {
         const isKiller = event.killer.name.toLowerCase() === (playerName || '').toLowerCase();
-        const loadout = isKiller ? event.killer.loadout : event.victim.loadout;
         
         return (
           <Card 
@@ -73,70 +99,101 @@ function RecentActivities({ events, isCheckingNewEvents, isLoadingInitial, playe
               isKiller ? 'border-green-500/20' : 'border-red-500/20'
             }`}
           >
-            <div className="flex items-center gap-4">
-              {/* Activity Info */}
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`text-sm font-medium ${isKiller ? 'text-green-500' : 'text-red-500'}`}>
-                    {isKiller ? 'Kill' : 'Death'}
-                  </span>
-                  <span className="text-sm text-zinc-400">
-                    {event.tags.is_1v1 ? '1v1' : 
-                     event.tags.is_2v2 ? '2v2' : 
-                     event.tags.is_5v5 ? '5v5' : 
-                     event.tags.is_zvz ? 'ZvZ' : 'PvP'}
-                  </span>
-                  <span className="text-sm text-zinc-400">{formatTimeAgo(event.time)}</span>
+            <div className="flex flex-col gap-3">
+              {/* Top row - Time and match type */}
+              <div className="flex items-center justify-between text-xs text-zinc-500">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-3 h-3" />
+                  {formatTimeAgo(event.time)}
+                  {event.tags.fair && <span className="text-green-500">(Fair Fight)</span>}
+                  {event.tags.unfair && <span className="text-yellow-500">(Unfair Fight)</span>}
                 </div>
-                
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="text-2xl font-bold">
-                    {isKiller ? '1/0/0' : '0/1/0'}
-                  </div>
-                  <div className="text-sm text-zinc-400">
-                    {formatFame(event.total_kill_fame)} Fame
-                  </div>
-                  <div className="text-sm text-zinc-400">
-                    IP: {isKiller ? event.killer.item_power : event.victim.item_power}
-                  </div>
-                  {event.participant_count > 2 && (
-                    <div className="text-sm text-zinc-400">
-                      {event.participant_count} Players
-                    </div>
-                  )}
-                </div>
-
-                {/* Equipment */}
-                <div className="flex gap-2">
-                  {Object.entries(loadout).map(([slot, item]) => {
-                    if (!item.id || ['food', 'potion'].includes(slot)) return null;
-                    
-                    return (
-                      <div key={slot} className="w-10 h-10 bg-zinc-900 rounded border border-zinc-800">
-                        <Image
-                        id={item.id}
-                          src={`https://render.albiononline.com/v1/item/${item.id}.png`}
-                          alt={item.en_name}
-                          width={40}
-                          height={40}
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                    );
-                  })}
+                <div className="flex items-center gap-2">
+                  <Users className="w-3 h-3" />
+                  {event.participant_count} Players
                 </div>
               </div>
 
-              {/* Players */}
-              <div className="flex gap-8">
-                <div className="space-y-1">
-                  <div className="text-sm text-zinc-400">{event.killer.name}</div>
-                  <div className="text-xs text-zinc-500">{event.killer.guild_name || 'No Guild'}</div>
+              {/* Player info and match stats */}
+              <div className="flex items-center justify-between">
+                {/* Left side - Player info */}
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-2">
+                      <Swords className="w-4 h-4 text-green-500" />
+                      <div className="text-sm font-medium">
+                        {event.killer.name}
+                      </div>
+                    </div>
+                    <div className="text-xs text-zinc-500">
+                      {event.killer.guild_name || 'No Guild'}
+                      {event.killer.alliance_name && ` [${event.killer.alliance_name}]`}
+                    </div>
+                  </div>
+                  <div className="text-sm text-zinc-400">vs</div>
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-2">
+                      <Skull className="w-4 h-4 text-red-500" />
+                      <div className="text-sm font-medium">
+                        {event.victim.name}
+                      </div>
+                    </div>
+                    <div className="text-xs text-zinc-500">
+                      {event.victim.guild_name || 'No Guild'}
+                      {event.victim.alliance_name && ` [${event.victim.alliance_name}]`}
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <div className="text-sm text-zinc-400">{event.victim.name}</div>
-                  <div className="text-xs text-zinc-500">{event.victim.guild_name || 'No Guild'}</div>
+
+                {/* Middle - Match info */}
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className="text-lg font-bold">
+                      {formatFame(event.total_kill_fame)}
+                    </div>
+                    <div className="text-xs text-zinc-400">AMA</div>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <div className="text-lg font-bold">
+                      {event.killer.item_power}
+                    </div>
+                    <div className="text-xs text-zinc-400">{event.tags.is_1v1 ? '1v1' : event.tags.is_2v2 ? '2v2' : event.tags.is_5v5 ? '5v5' : event.tags.is_zvz ? 'ZvZ' : 'PvP'}</div>
+                  </div>
                 </div>
+              </div>
+
+              {/* Equipment for both players */}
+              <div className="flex justify-between items-center gap-4">
+                <div className="flex-1">
+                  {renderEquipment(event.killer.loadout)}
+                </div>
+                <div className="text-xs text-zinc-500">vs</div>
+                <div className="flex-1 flex justify-end">
+                  {renderEquipment(event.victim.loadout)}
+                </div>
+              </div>
+
+              {/* Bottom row - Combat stats and VOD */}
+              <div className="flex items-center justify-between text-xs text-zinc-500">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <Shield className="w-3 h-3 text-blue-400" />
+                    {formatFame(event.killer.damage_done)} Damage
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Heart className="w-3 h-3 text-green-400" />
+                    {formatFame(event.killer.healing_done)} Healing
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 p-0 text-xs text-zinc-400 hover:text-zinc-300"
+                  onClick={() => window.open(`https://albiononline.com/en/killboard/kill/${event.id}`, '_blank')}
+                >
+                  <ExternalLink className="w-3 h-3 mr-1" />
+                  Details
+                </Button>
               </div>
             </div>
           </Card>
