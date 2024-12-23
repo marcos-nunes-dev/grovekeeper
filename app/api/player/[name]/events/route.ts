@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { withPrisma } from '@/lib/prisma-helper'
 import { PrismaClient, Prisma } from '@prisma/client'
+import { sendUpdate } from '../updates/route'
 
 const EVENTS_PER_PAGE = 20
 const MURDER_LEDGER_API = 'https://murderledger.albiononline2d.com/api/players'
@@ -308,7 +309,6 @@ export async function GET(
   try {
     // 1. First get events from our database
     const storedEvents = await getStoredEvents(playerName, limit);
-    console.log('Stored events:', storedEvents.length);
 
     // For first-time users with no stored events, just fetch first page from Murder Ledger
     if (storedEvents.length === 0) {
@@ -319,72 +319,109 @@ export async function GET(
         return NextResponse.json({
           data: initialEvents.map(event => event.eventData),
           newEventsCount: events.length,
-          totalEvents: initialEvents.length
+          totalEvents: initialEvents.length,
+          isCheckingNewEvents: false
         });
       }
       return NextResponse.json({
         data: [],
         newEventsCount: 0,
-        totalEvents: 0
+        totalEvents: 0,
+        isCheckingNewEvents: false
       });
     }
 
-    // For existing users, check for newer events
-    const latestEvent = storedEvents[0];
-    let newEvents: MurderLedgerEvent[] = [];
-    let skip = 0;
-    let foundExisting = false;
-
-    // Only fetch from Murder Ledger until we find our latest event
-    while (!foundExisting) {
-      try {
-        const events = await fetchMurderLedgerEvents(playerName, skip);
-        
-        if (events.length === 0) break;
-
-        // Find where our latest stored event is in the Murder Ledger results
-        const existingEventIndex = events.findIndex(
-          event => event.id.toString() === latestEvent.id
-        );
-
-        if (existingEventIndex !== -1) {
-          // We found our latest event, only take events newer than it
-          newEvents = [...newEvents, ...events.slice(0, existingEventIndex)];
-          foundExisting = true;
-        } else {
-          newEvents = [...newEvents, ...events];
-        }
-
-        skip += EVENTS_PER_PAGE;
-        
-        // Safety check to prevent too many requests
-        if (skip >= 100) {
-          foundExisting = true;
-        }
-      } catch (error) {
-        console.error('Error fetching from Murder Ledger:', error);
-        // If Murder Ledger fails, just return stored events
-        foundExisting = true;
-      }
-    }
-
-    // Store only new events if we found any
-    if (newEvents.length > 0) {
-      await storeNewEvents(newEvents, playerName);
-      const updatedEvents = await getStoredEvents(playerName, limit);
-      return NextResponse.json({
-        data: updatedEvents.map(event => event.eventData),
-        newEventsCount: newEvents.length,
-        totalEvents: updatedEvents.length
-      });
-    }
-
-    // If no new events, return stored events
-    return NextResponse.json({
+    // For existing users, return stored data immediately
+    const immediateResponse = NextResponse.json({
       data: storedEvents.map(event => event.eventData),
       newEventsCount: 0,
-      totalEvents: storedEvents.length
+      totalEvents: storedEvents.length,
+      isCheckingNewEvents: true // Indicate we're checking for updates
     });
+
+    // Then check for newer events in the background
+    const checkNewEvents = async () => {
+      console.log('Starting background check for new events');
+      const latestEvent = storedEvents[0];
+      let newEvents: MurderLedgerEvent[] = [];
+      let skip = 0;
+      let foundExisting = false;
+
+      while (!foundExisting) {
+        try {
+          const events = await fetchMurderLedgerEvents(playerName, skip);
+          console.log(`Fetched ${events.length} events from Murder Ledger`);
+          
+          if (events.length === 0) {
+            console.log('No more events to fetch');
+            break;
+          }
+
+          const existingEventIndex = events.findIndex(
+            event => event.id.toString() === latestEvent.id
+          );
+
+          if (existingEventIndex !== -1) {
+            console.log('Found existing event at index:', existingEventIndex);
+            newEvents = [...newEvents, ...events.slice(0, existingEventIndex)];
+            foundExisting = true;
+          } else {
+            newEvents = [...newEvents, ...events];
+          }
+
+          skip += EVENTS_PER_PAGE;
+          
+          if (skip >= 100) {
+            console.log('Reached maximum pages, stopping');
+            foundExisting = true;
+          }
+        } catch (error) {
+          console.error('Error fetching from Murder Ledger:', error);
+          foundExisting = true;
+        }
+      }
+
+      console.log(`Found ${newEvents.length} new events`);
+
+      if (newEvents.length > 0) {
+        await storeNewEvents(newEvents, playerName);
+        const updatedEvents = await getStoredEvents(playerName, limit);
+        
+        // Send update via SSE
+        console.log('Sending update with new events');
+        sendUpdate(playerName, {
+          data: updatedEvents.map(event => event.eventData),
+          newEventsCount: newEvents.length,
+          totalEvents: updatedEvents.length,
+          isCheckingNewEvents: false // Ensure this is false when done
+        });
+      } else {
+        // Send completion status even if no new events
+        console.log('Sending completion status with no new events');
+        sendUpdate(playerName, {
+          data: storedEvents.map(event => event.eventData),
+          newEventsCount: 0,
+          totalEvents: storedEvents.length,
+          isCheckingNewEvents: false // Ensure this is false when done
+        });
+      }
+    };
+
+    // Start background check without waiting for it
+    checkNewEvents().catch(error => {
+      console.error('Error in background check:', error);
+      // Send error status via SSE
+      console.log('Sending error status');
+      sendUpdate(playerName, {
+        data: storedEvents.map(event => event.eventData),
+        newEventsCount: 0,
+        totalEvents: storedEvents.length,
+        isCheckingNewEvents: false, // Ensure this is false on error
+        error: 'Failed to check for new events'
+      });
+    });
+
+    return immediateResponse;
 
   } catch (error) {
     console.error('Error fetching player events:', error);

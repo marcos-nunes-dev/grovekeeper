@@ -283,7 +283,9 @@ const recentActivities = [
   // ... (keep other mock activities)
 ]
 
-function formatFame(fame: number): string {
+function formatFame(fame: number | undefined | null): string {
+  if (fame === undefined || fame === null) return '0'
+  
   if (fame >= 1_000_000_000) {
     return `${(fame / 1_000_000_000).toFixed(1)}B`
   }
@@ -296,27 +298,115 @@ function formatFame(fame: number): string {
   return fame.toString()
 }
 
-export default function PlayerProfile({ playerData, region, shareUrl, cacheStatus }: PlayerProfileProps) {
+// Add isCheckingNewEvents to the response type
+interface EventsResponse {
+  data: MurderLedgerEvent[];
+  newEventsCount: number;
+  totalEvents: number;
+  isCheckingNewEvents: boolean;
+}
+
+// Add a skeleton loader component for events
+function EventSkeleton() {
+  return (
+    <Card className="bg-[#0D1117] border-zinc-800/50 p-3 rounded-lg animate-pulse">
+      <div className="flex items-center gap-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-16 h-4 bg-zinc-800 rounded" />
+            <div className="w-12 h-4 bg-zinc-800 rounded" />
+            <div className="w-24 h-4 bg-zinc-800 rounded" />
+          </div>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-20 h-8 bg-zinc-800 rounded" />
+            <div className="w-32 h-4 bg-zinc-800 rounded" />
+            <div className="w-24 h-4 bg-zinc-800 rounded" />
+          </div>
+          <div className="flex gap-2">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="w-10 h-10 bg-zinc-800 rounded" />
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-8">
+          <div className="space-y-1">
+            <div className="w-24 h-4 bg-zinc-800 rounded" />
+            <div className="w-20 h-3 bg-zinc-800 rounded" />
+          </div>
+          <div className="space-y-1">
+            <div className="w-24 h-4 bg-zinc-800 rounded" />
+            <div className="w-20 h-3 bg-zinc-800 rounded" />
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+export default function PlayerProfile({ 
+  playerData = { 
+    id: '', 
+    name: '', 
+    guildName: '', 
+    allianceName: '', 
+    allianceTag: '', 
+    avatar: '',
+    killFame: 0,
+    deathFame: 0,
+    pveTotal: 0,
+    gatheringTotal: 0,
+    craftingTotal: 0,
+    region: ''
+  }, 
+  region = '', 
+  shareUrl = '', 
+  cacheStatus = { isStale: false, isUpdating: false }
+}: PlayerProfileProps) {
   const [copied, setCopied] = useState(false)
   const [recentEvents, setRecentEvents] = useState<MurderLedgerEvent[]>([])
-  const [isLoadingEvents, setIsLoadingEvents] = useState(true)
+  const [isLoadingInitial, setIsLoadingInitial] = useState(true)
+  const [isCheckingNewEvents, setIsCheckingNewEvents] = useState(false)
   const eventSourceRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
     const fetchEvents = async () => {
-      setIsLoadingEvents(true)
-      
       try {
         const response = await fetch(`/api/player/${playerData.name}/events?limit=10`)
-        const data = await response.json()
+        const data = await response.json() as EventsResponse
         
-        if (data.data) {
+        if ('data' in data) {
           setRecentEvents(data.data)
+          setIsCheckingNewEvents(data.isCheckingNewEvents)
+
+          // Set up SSE connection for updates
+          if (data.isCheckingNewEvents) {
+            const eventSource = new EventSource(`/api/player/${playerData.name}/updates?region=${region}`)
+            eventSourceRef.current = eventSource
+
+            eventSource.onmessage = (event) => {
+              const update = JSON.parse(event.data)
+              setRecentEvents(update.data)
+              setIsCheckingNewEvents(update.isCheckingNewEvents)
+
+              // If we're done checking or there's an error, close the connection
+              if (!update.isCheckingNewEvents || update.error) {
+                eventSource.close()
+                eventSourceRef.current = null
+              }
+            }
+
+            eventSource.onerror = () => {
+              setIsCheckingNewEvents(false)
+              eventSource.close()
+              eventSourceRef.current = null
+            }
+          }
         }
       } catch (error) {
-        console.error('Failed to fetch events:', error)
+        console.error('Error fetching events:', error)
+        setIsCheckingNewEvents(false)
       } finally {
-        setIsLoadingEvents(false)
+        setIsLoadingInitial(false)
       }
     }
 
@@ -327,9 +417,10 @@ export default function PlayerProfile({ playerData, region, shareUrl, cacheStatu
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close()
+        eventSourceRef.current = null
       }
     }
-  }, [playerData.name])
+  }, [playerData.name, region])
 
   const formatTimeAgo = (timestamp: number) => {
     const seconds = Math.floor((Date.now() - timestamp * 1000) / 1000)
@@ -371,8 +462,6 @@ export default function PlayerProfile({ playerData, region, shareUrl, cacheStatu
   const pvePercentage = (playerData.pveTotal / totalFame) * 100
   const gatheringPercentage = (playerData.gatheringTotal / totalFame) * 100
 
-  console.log(recentEvents)
-
   return (
     <div className="grid grid-cols-12 gap-4">
       {/* Left Sidebar */}
@@ -402,9 +491,9 @@ export default function PlayerProfile({ playerData, region, shareUrl, cacheStatu
                   <h2 className="text-xl font-bold">{playerData.name}</h2>
                   <p className="text-sm text-zinc-400">{region}</p>
                 </div>
-                {cacheStatus.isUpdating ? (
+                {cacheStatus?.isUpdating ? (
                   <Loader2 className="h-4 w-4 mt-2 animate-spin text-[#00E6B4]" />
-                ) : cacheStatus.isStale && (
+                ) : cacheStatus?.isStale && (
                   <TooltipProvider>
                     <UITooltip>
                       <TooltipTrigger>
@@ -544,13 +633,11 @@ export default function PlayerProfile({ playerData, region, shareUrl, cacheStatu
       <div className="col-span-9 space-y-3">
         <h3 className="font-semibold text-lg px-1">Recent Activities</h3>
         
-        {isLoadingEvents ? (
-          // Loading state
+        {isLoadingInitial ? (
+          // Initial loading state when we have no data
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <Card key={i} className="bg-[#0D1117] border-zinc-800/50 p-3 rounded-lg animate-pulse">
-                <div className="h-32 bg-zinc-800/50 rounded" />
-              </Card>
+              <EventSkeleton key={i} />
             ))}
           </div>
         ) : recentEvents.length === 0 ? (
@@ -561,85 +648,88 @@ export default function PlayerProfile({ playerData, region, shareUrl, cacheStatu
             </div>
           </Card>
         ) : (
-          // Events list
-          recentEvents.map((event) => {
-            const isKiller = event.killer.name.toLowerCase() === playerData.name.toLowerCase()
-            const loadout = isKiller ? event.killer.loadout : event.victim.loadout
-            
-            return (
-              <Card 
-                key={event.id} 
-                className={`bg-[#0D1117] border-zinc-800/50 p-3 rounded-lg ${
-                  isKiller ? 'border-green-500/20' : 'border-red-500/20'
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  {/* Activity Info */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-sm font-medium ${isKiller ? 'text-green-500' : 'text-red-500'}`}>
-                        {isKiller ? 'Kill' : 'Death'}
-                      </span>
-                      <span className="text-sm text-zinc-400">
-                        {event.tags.is_1v1 ? '1v1' : 
-                         event.tags.is_2v2 ? '2v2' : 
-                         event.tags.is_5v5 ? '5v5' : 
-                         event.tags.is_zvz ? 'ZvZ' : 'PvP'}
-                      </span>
-                      <span className="text-sm text-zinc-400">{formatTimeAgo(event.time)}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="text-2xl font-bold">
-                        {isKiller ? '1/0/0' : '0/1/0'}
+          // Events list with potential loading state for new events
+          <div className="space-y-3">
+            {isCheckingNewEvents && <EventSkeleton />}
+            {recentEvents.map((event: MurderLedgerEvent) => {
+              const isKiller = event.killer.name.toLowerCase() === (playerData?.name || '').toLowerCase();
+              const loadout = isKiller ? event.killer.loadout : event.victim.loadout;
+              
+              return (
+                <Card 
+                  key={event.id} 
+                  className={`bg-[#0D1117] border-zinc-800/50 p-3 rounded-lg ${
+                    isKiller ? 'border-green-500/20' : 'border-red-500/20'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    {/* Activity Info */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-sm font-medium ${isKiller ? 'text-green-500' : 'text-red-500'}`}>
+                          {isKiller ? 'Kill' : 'Death'}
+                        </span>
+                        <span className="text-sm text-zinc-400">
+                          {event.tags.is_1v1 ? '1v1' : 
+                           event.tags.is_2v2 ? '2v2' : 
+                           event.tags.is_5v5 ? '5v5' : 
+                           event.tags.is_zvz ? 'ZvZ' : 'PvP'}
+                        </span>
+                        <span className="text-sm text-zinc-400">{formatTimeAgo(event.time)}</span>
                       </div>
-                      <div className="text-sm text-zinc-400">
-                        {formatFame(event.total_kill_fame)} Fame
-                      </div>
-                      <div className="text-sm text-zinc-400">
-                        IP: {isKiller ? event.killer.item_power : event.victim.item_power}
-                      </div>
-                      {event.participant_count > 2 && (
-                        <div className="text-sm text-zinc-400">
-                          {event.participant_count} Players
+                      
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="text-2xl font-bold">
+                          {isKiller ? '1/0/0' : '0/1/0'}
                         </div>
-                      )}
-                    </div>
-
-                    {/* Equipment */}
-                    <div className="flex gap-2">
-                      {Object.entries(loadout).map(([slot, item]) => {
-                        if (!item || ['food', 'potion'].includes(slot)) return null
-                        return (
-                          <div key={slot} className="w-10 h-10 bg-zinc-900 rounded border border-zinc-800">
-                            <Image
-                              src={`https://render.albiononline.com/v1/item/${item.id}.png`}
-                              alt={item.en_name}
-                              width={40}
-                              height={40}
-                              className="w-full h-full object-contain"
-                            />
+                        <div className="text-sm text-zinc-400">
+                          {formatFame(event.total_kill_fame)} Fame
+                        </div>
+                        <div className="text-sm text-zinc-400">
+                          IP: {isKiller ? event.killer.item_power : event.victim.item_power}
+                        </div>
+                        {event.participant_count > 2 && (
+                          <div className="text-sm text-zinc-400">
+                            {event.participant_count} Players
                           </div>
-                        )
-                      })}
-                    </div>
-                  </div>
+                        )}
+                      </div>
 
-                  {/* Players */}
-                  <div className="flex gap-8">
-                    <div className="space-y-1">
-                      <div className="text-sm text-zinc-400">{event.killer.name}</div>
-                      <div className="text-xs text-zinc-500">{event.killer.guild_name || 'No Guild'}</div>
+                      {/* Equipment */}
+                      <div className="flex gap-2">
+                        {Object.entries(loadout).map(([slot, item]) => {
+                          if (!item || ['food', 'potion'].includes(slot)) return null;
+                          return (
+                            <div key={slot} className="w-10 h-10 bg-zinc-900 rounded border border-zinc-800">
+                              <Image
+                                src={`https://render.albiononline.com/v1/item/${item.id}.png`}
+                                alt={item.en_name}
+                                width={40}
+                                height={40}
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <div className="text-sm text-zinc-400">{event.victim.name}</div>
-                      <div className="text-xs text-zinc-500">{event.victim.guild_name || 'No Guild'}</div>
+
+                    {/* Players */}
+                    <div className="flex gap-8">
+                      <div className="space-y-1">
+                        <div className="text-sm text-zinc-400">{event.killer.name}</div>
+                        <div className="text-xs text-zinc-500">{event.killer.guild_name || 'No Guild'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-sm text-zinc-400">{event.victim.name}</div>
+                        <div className="text-xs text-zinc-500">{event.victim.guild_name || 'No Guild'}</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Card>
-            )
-          })
+                </Card>
+              );
+            })}
+          </div>
         )}
       </div>
 

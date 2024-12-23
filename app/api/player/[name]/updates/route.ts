@@ -1,100 +1,52 @@
-// Global map to store SSE controllers with automatic cleanup after 5 minutes
-export const updateControllers = new Map<string, {
-  controller: ReadableStreamDefaultController;
-  timeout: NodeJS.Timeout;
-}>()
+import { NextResponse } from 'next/server'
 
-const STREAM_TIMEOUT = 5 * 60 * 1000 // 5 minutes
+const clients = new Map<string, Set<(data: any) => void>>()
 
-interface UpdateMessage {
-  data?: {
-    id: string;
-    name: string;
-    guildName: string;
-    allianceName: string;
-    allianceTag: string;
-    avatar: string;
-    killFame: number;
-    deathFame: number;
-    pveTotal: number;
-    gatheringTotal: number;
-    craftingTotal: number;
-    region: string;
-  };
-  cacheStatus?: {
-    isStale: boolean;
-    isUpdating: boolean;
-  };
-  error?: string;
-  details?: string;
+export function sendUpdate(playerName: string, data: any) {
+  const key = playerName.toLowerCase()
+  const handlers = clients.get(key)
+  if (handlers) {
+    handlers.forEach(handler => handler(data))
+  }
 }
 
 export async function GET(
   request: Request,
   { params }: { params: { name: string } }
 ) {
-  const playerName = params.name
+  const playerName = params.name.toLowerCase()
 
-  // Create SSE stream
-  const stream = new ReadableStream({
-    start(controller) {
-      // Clear any existing controller for this player
-      const existing = updateControllers.get(playerName)
-      if (existing) {
-        clearTimeout(existing.timeout)
-        existing.controller.close()
-      }
+  // Set up SSE headers
+  const stream = new TransformStream()
+  const writer = stream.writable.getWriter()
+  const encoder = new TextEncoder()
 
-      // Set up automatic cleanup after timeout
-      const timeout = setTimeout(() => {
-        const entry = updateControllers.get(playerName)
-        if (entry) {
-          entry.controller.close()
-          updateControllers.delete(playerName)
-        }
-      }, STREAM_TIMEOUT)
+  // Add client to the map
+  if (!clients.has(playerName)) {
+    clients.set(playerName, new Set())
+  }
 
-      // Store the new controller with its timeout
-      updateControllers.set(playerName, {
-        controller,
-        timeout
-      })
+  const handlers = clients.get(playerName)!
+  const handler = (data: any) => {
+    const message = `data: ${JSON.stringify(data)}\n\n`
+    writer.write(encoder.encode(message)).catch(console.error)
+  }
+  handlers.add(handler)
 
-      // Clean up when client disconnects
-      request.signal.addEventListener('abort', () => {
-        const entry = updateControllers.get(playerName)
-        if (entry) {
-          clearTimeout(entry.timeout)
-          entry.controller.close()
-          updateControllers.delete(playerName)
-        }
-      })
+  // Clean up on disconnect
+  request.signal.addEventListener('abort', () => {
+    handlers.delete(handler)
+    if (handlers.size === 0) {
+      clients.delete(playerName)
     }
+    writer.close().catch(console.error)
   })
 
-  return new Response(stream, {
+  return new NextResponse(stream.readable, {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
-    }
+      'Connection': 'keep-alive',
+    },
   })
-}
-
-// Helper function to send updates
-export async function sendUpdate(playerName: string, message: UpdateMessage) {
-  const entry = updateControllers.get(playerName)
-  if (entry) {
-    try {
-      const encoder = new TextEncoder()
-      const messageText = encoder.encode(`data: ${JSON.stringify(message)}\n\n`)
-      entry.controller.enqueue(messageText)
-    } catch (error) {
-      console.error(`Error sending update for ${playerName}:`, error)
-      // Clean up the connection if we can't send updates
-      clearTimeout(entry.timeout)
-      entry.controller.close()
-      updateControllers.delete(playerName)
-    }
-  }
 } 
