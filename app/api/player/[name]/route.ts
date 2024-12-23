@@ -170,8 +170,8 @@ export async function GET(
           killFame: Number(cachedPlayer.killFame),
           deathFame: Number(cachedPlayer.deathFame),
           pveTotal: Number(cachedPlayer.pveTotal),
-          gatheringTotal: 0,
-          craftingTotal: 0,
+          gatheringTotal: Number(cachedPlayer.gatheringTotal),
+          craftingTotal: Number(cachedPlayer.craftingTotal),
           region,
         },
         cacheStatus: {
