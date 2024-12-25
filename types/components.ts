@@ -4,7 +4,6 @@ export interface PlayerProfileProps {
   playerData: PlayerData;
   events: MurderLedgerEvent[];
   isCheckingNewEvents: boolean;
-  region: string;
   shareUrl: string;
   cacheStatus: CacheStatus;
 }
@@ -31,10 +30,16 @@ export interface RecentActivitiesProps {
 
 export interface GuildHistoryProps {
   playerName: string;
-  region: string;
-  currentGuild: string;
 }
 
 export interface EventSkeletonProps {
   count?: number;
+}
+
+export interface GuildHistoryEntry {
+  id: string;
+  name: string;
+  joinDate: string;
+  leaveDate: string;
+  duration: string;
 }

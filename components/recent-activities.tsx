@@ -47,14 +47,14 @@ function EventSkeleton({ count = 3 }) {
   );
 }
 
-function RecentActivities({ 
+const RecentActivities = memo(({ 
   events, 
   isCheckingNewEvents, 
   playerName,
   onLoadMore,
   isLoadingMore = false,
   hasMoreEvents = true
-}: RecentActivitiesProps) {
+}: RecentActivitiesProps) => {
   if (events.length === 0) {
     return (
       <Card className="bg-[#0D1117] border-zinc-800/50 p-6 rounded-lg">
@@ -275,6 +275,8 @@ function RecentActivities({
       )}
     </div>
   );
-}
+});
 
-export default memo(RecentActivities);
+RecentActivities.displayName = 'RecentActivities';
+
+export default RecentActivities;

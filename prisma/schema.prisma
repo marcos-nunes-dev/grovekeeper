@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -18,40 +18,43 @@ model GrovekeeperStatistics {
 }
 
 model GuildHistory {
-  id          String   @id @default(cuid())
-  playerName  String
-  guildName   String
-  eventDate   DateTime
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  playerName String
+  guildName  String
+  firstSeen  DateTime
+  lastSeen   DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
+  @@unique([playerName, guildName], name: "playerName_guildName")
   @@index([playerName])
-  @@index([eventDate])
+  @@index([guildName])
 }
 
 model PlayerCache {
-  id          String   @id
-  playerName  String   @unique
-  guildName   String?
-  killFame    BigInt
-  deathFame   BigInt
-  pveTotal    BigInt
-  gatheringTotal BigInt @default(0)
-  craftingTotal BigInt @default(0)
-  hasDeepSearch Boolean @default(false)
-  updatedAt   DateTime @default(now())
+  id             String   @id
+  playerName     String   @unique
+  guildName      String?
+  killFame       BigInt
+  deathFame      BigInt
+  pveTotal       BigInt
+  gatheringTotal BigInt   @default(0)
+  craftingTotal  BigInt   @default(0)
+  hasDeepSearch  Boolean  @default(false)
+  updatedAt      DateTime @default(now())
 
   @@index([playerName])
 }
 
 model PlayerEvent {
-  id          String   @id // Murder Ledger event ID
-  playerId    String   // Player's ID for efficient querying
-  playerName  String   // Player's name for efficient querying
-  timestamp   DateTime // Event timestamp for ordering and comparing
-  eventType   String   // "KILL" or "DEATH" for filtering
-  eventData   Json     // Full event data as JSON
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id // Murder Ledger event ID
+  playerId   String // Player's ID for efficient querying
+  playerName String // Player's name for efficient querying
+  timestamp  DateTime // Event timestamp for ordering and comparing
+  eventType  String // "KILL" or "DEATH" for filtering
+  eventData  Json // Full event data as JSON
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([playerId, timestamp(sort: Desc)]) // For efficient querying of player's latest events
   @@index([playerName, timestamp(sort: Desc)]) // For efficient querying by player name

@@ -28,14 +28,13 @@ const zvzData = [
   { date: '12/21', wins: 2, losses: 2 },
 ];
 
-function PlayerProfile({ 
+const PlayerProfile = memo(({ 
   playerData, 
   events,
   isCheckingNewEvents,
-  region, 
   shareUrl, 
   cacheStatus = { isStale: false, isUpdating: false }
-}: PlayerProfileProps) {
+}: PlayerProfileProps) => {
   const [copied, setCopied] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreEvents, setHasMoreEvents] = useState(true);
@@ -146,9 +145,7 @@ function PlayerProfile({
 
         {/* Guild History Widget */}
         <GuildHistory 
-          playerName={playerData.name} 
-          region={region} 
-          currentGuild={playerData.guildName}
+          playerName={playerData.name}
         />
       </div>
 
@@ -308,7 +305,9 @@ function PlayerProfile({
       </div>
     </div>
   );
-}
+});
 
-export default memo(PlayerProfile);
+PlayerProfile.displayName = 'PlayerProfile';
+
+export default PlayerProfile;
 
