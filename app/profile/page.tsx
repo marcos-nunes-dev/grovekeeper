@@ -119,18 +119,18 @@ export default function Profile() {
         setSelectedPlayer(prev => prev ? {
           ...prev,
           events: update.data
-        } : null)
+        } : null);
       }
-      setIsCheckingNewEvents(update.isCheckingNewEvents || false)
+      setIsCheckingNewEvents(update.isCheckingNewEvents || false);
     },
     {
       retryOnError: true,
       maxRetries: 3,
       onError: () => {
-        setIsCheckingNewEvents(false)
+        setIsCheckingNewEvents(false);
       }
     }
-  )
+  );
 
   useEffect(() => {
     const nameParam = searchParams.get('name')

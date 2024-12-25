@@ -328,6 +328,29 @@ export async function GET(
       });
     }
 
+    // Check for new events on initial load
+    if (skip === 0) {
+      const latestStoredEvent = storedEvents[0];
+      const latestEvents = await fetchMurderLedgerEvents(playerName, 0);
+      
+      // Filter out events that are newer than our latest stored event
+      const newEvents = latestEvents.filter(event => {
+        const eventTime = new Date(event.time * 1000);
+        return eventTime > latestStoredEvent.timestamp;
+      });
+
+      if (newEvents.length > 0) {
+        await storeNewEvents(newEvents, playerName);
+        const updatedEvents = await getStoredEvents(playerName, limit, skip);
+        return NextResponse.json({
+          data: updatedEvents.map(event => event.eventData),
+          newEventsCount: newEvents.length,
+          totalEvents: updatedEvents.length,
+          isCheckingNewEvents: false
+        });
+      }
+    }
+
     // If we're loading more and don't have enough stored events
     if (storedEvents.length < limit) {
       // Get the total count of stored events before the current skip point
@@ -362,8 +385,12 @@ export async function GET(
     return NextResponse.json({
       data: storedEvents.map(event => event.eventData),
       newEventsCount: 0,
-      totalEvents: storedEvents.length,
-      isCheckingNewEvents: skip === 0 // Only check for updates on initial load
+      totalEvents: await withPrisma(prisma =>
+        prisma.playerEvent.count({
+          where: { playerName: playerName.toLowerCase() }
+        })
+      ),
+      isCheckingNewEvents: false
     });
 
   } catch (error) {
