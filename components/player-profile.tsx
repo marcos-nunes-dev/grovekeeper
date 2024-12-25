@@ -37,7 +37,6 @@ function PlayerProfile({
   cacheStatus = { isStale: false, isUpdating: false }
 }: PlayerProfileProps) {
   const [copied, setCopied] = useState(false);
-  const [isLoadingInitial, setIsLoadingInitial] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreEvents, setHasMoreEvents] = useState(true);
 
@@ -159,7 +158,6 @@ function PlayerProfile({
         <RecentActivities 
           events={events}
           isCheckingNewEvents={isCheckingNewEvents}
-          isLoadingInitial={isLoadingInitial}
           playerName={playerData.name}
           onLoadMore={handleLoadMore}
           isLoadingMore={isLoadingMore}

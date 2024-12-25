@@ -23,7 +23,6 @@ export interface PlayerStatsProps {
 export interface RecentActivitiesProps {
   events: MurderLedgerEvent[];
   isCheckingNewEvents: boolean;
-  isLoadingInitial: boolean;
   playerName: string;
   onLoadMore: () => void;
   isLoadingMore?: boolean;

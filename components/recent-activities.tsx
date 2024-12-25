@@ -50,16 +50,11 @@ function EventSkeleton({ count = 3 }) {
 function RecentActivities({ 
   events, 
   isCheckingNewEvents, 
-  isLoadingInitial, 
   playerName,
   onLoadMore,
   isLoadingMore = false,
   hasMoreEvents = true
 }: RecentActivitiesProps) {
-  if (isLoadingInitial) {
-    return <EventSkeleton />;
-  }
-
   if (events.length === 0) {
     return (
       <Card className="bg-[#0D1117] border-zinc-800/50 p-6 rounded-lg">
