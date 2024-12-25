@@ -1,23 +1,21 @@
-import { memo, useState } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, Sword, Coins } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
+import { Users, Sword, Coins, Filter } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { PlayerProfileProps } from '@/types/components';
 import PlayerInfo from './player-info';
 import RecentActivities from './recent-activities';
 import GuildHistory from './guild-history';
+import { formatFame } from '@/lib/utils/format';
 
 // Mock data that we'll replace with real data in the future
-const fameData = [
-  { date: '12/13', fame: 20000 },
-  { date: '12/14', fame: 22000 },
-  { date: '12/15', fame: 21000 },
-  { date: '12/16', fame: 25000 },
-  { date: '12/17', fame: 28000 },
-  { date: '12/18', fame: 27000 },
-  { date: '12/19', fame: 32000 },
-];
-
 const zvzData = [
   { date: '12/15', wins: 2, losses: 1 },
   { date: '12/16', wins: 3, losses: 2 },
@@ -27,6 +25,27 @@ const zvzData = [
   { date: '12/20', wins: 3, losses: 1 },
   { date: '12/21', wins: 2, losses: 2 },
 ];
+
+interface FameDataPoint {
+  date: string;
+  fame: number;
+}
+
+const CustomTooltip = ({ 
+  active, 
+  payload, 
+  label 
+}: TooltipProps<number, string> & { payload?: Array<{ value: number }> }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#1C2128] border border-zinc-800/50 rounded-lg p-2 text-sm">
+        <p className="text-zinc-400">{label}</p>
+        <p className="font-medium text-[#00E6B4]">{formatFame(payload[0].value)}</p>
+      </div>
+    );
+  }
+  return null;
+};
 
 const PlayerProfile = memo(({ 
   playerData, 
@@ -38,6 +57,31 @@ const PlayerProfile = memo(({
   const [copied, setCopied] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreEvents, setHasMoreEvents] = useState(true);
+  const [fameData, setFameData] = useState<FameDataPoint[]>([]);
+  const [isLoadingFame, setIsLoadingFame] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '14d' | '30d' | 'all'>('7d');
+
+  useEffect(() => {
+    const fetchFameProgression = async () => {
+      if (!playerData?.name) return;
+      
+      try {
+        setIsLoadingFame(true);
+        const response = await fetch(`/api/player/${encodeURIComponent(playerData.name)}/fame-progression?period=${selectedPeriod}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch fame progression');
+        }
+        const data = await response.json();
+        setFameData(data);
+      } catch (error) {
+        console.error('Failed to fetch fame progression:', error);
+      } finally {
+        setIsLoadingFame(false);
+      }
+    };
+
+    fetchFameProgression();
+  }, [playerData?.name, selectedPeriod]);
 
   const handleShare = async () => {
     try {
@@ -92,6 +136,12 @@ const PlayerProfile = memo(({
     silverLost: 8000000,
   };
 
+  // Calculate data period from events
+  const dataPeriod = events.length > 0 ? {
+    start: new Date(events[events.length - 1].time * 1000), // Convert to Date
+    end: new Date(events[0].time * 1000) // Convert to Date
+  } : undefined;
+
   return (
     <div className="grid grid-cols-12 gap-4">
       {/* Left Sidebar */}
@@ -101,45 +151,69 @@ const PlayerProfile = memo(({
           cacheStatus={cacheStatus}
           onShare={handleShare}
           copied={copied}
+          dataPeriod={dataPeriod}
         />
 
         {/* Fame Progression Graph */}
         <Card className="bg-[#0D1117] border-zinc-800/50 p-4 rounded-lg">
-          <h3 className="font-semibold mb-4">Fame Progression</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold">PVP Fame Progression</h3>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Filter className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setSelectedPeriod('7d')}>
+                  Last 7 days
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedPeriod('14d')}>
+                  Last 14 days
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedPeriod('30d')}>
+                  Last 30 days
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedPeriod('all')}>
+                  All time
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           <div className="h-[200px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={fameData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                <CartesianGrid stroke="#27272a" strokeDasharray="4" vertical={false} />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#71717a" 
-                  axisLine={false} 
-                  tickLine={false}
-                  fontSize={12}
-                />
-                <YAxis 
-                  stroke="#71717a" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  fontSize={12}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1C2128',
-                    border: '1px solid rgba(39, 39, 42, 0.5)',
-                    borderRadius: '6px',
-                    fontSize: '12px'
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="fame" 
-                  stroke="#00E6B4" 
-                  dot={false}
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {isLoadingFame ? (
+              <div className="h-full w-full flex items-center justify-center">
+                <div className="h-4 w-4 border-2 border-[#00E6B4] border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={fameData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                  <CartesianGrid stroke="#27272a" strokeDasharray="4" vertical={false} />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#71717a" 
+                    axisLine={false} 
+                    tickLine={false}
+                    fontSize={12}
+                  />
+                  <YAxis 
+                    stroke="#71717a" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    fontSize={12}
+                    tickFormatter={formatFame}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="fame" 
+                    stroke="#00E6B4" 
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Card>
 

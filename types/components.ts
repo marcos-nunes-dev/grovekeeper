@@ -9,10 +9,30 @@ export interface PlayerProfileProps {
 }
 
 export interface PlayerInfoProps {
-  playerData: PlayerData;
-  cacheStatus: CacheStatus;
+  playerData: {
+    id: string;
+    name: string;
+    guildName: string;
+    allianceName: string;
+    allianceTag: string;
+    avatar: string;
+    killFame: number;
+    deathFame: number;
+    pveTotal: number;
+    gatheringTotal: number;
+    craftingTotal: number;
+    region: string;
+  };
+  cacheStatus?: {
+    isStale: boolean;
+    isUpdating: boolean;
+  };
   onShare: () => void;
   copied: boolean;
+  dataPeriod?: {
+    start: string | Date;
+    end: string | Date;
+  };
 }
 
 export interface PlayerStatsProps {
