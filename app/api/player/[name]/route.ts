@@ -144,6 +144,19 @@ async function updatePlayerCache(data: AlbionPlayerResponse) {
   }
 }
 
+// Helper function to fetch fresh data from Albion API
+async function fetchFreshData(playerName: string, region: string) {
+  const playerId = await findPlayer(playerName);
+  const playerData = await fetchPlayerDetails(playerId);
+  const formattedData = await formatPlayerData(playerData, region);
+  return { playerData, formattedData };
+}
+
+type FreshDataResult = {
+  playerData: AlbionPlayerResponse;
+  formattedData: ReturnType<typeof formatPlayerData>;
+};
+
 export async function GET(
   request: Request,
   { params }: { params: { name: string } }
@@ -158,7 +171,11 @@ export async function GET(
 
     // If we have cached data
     if (cachedPlayer) {
-      // Return cached data immediately
+      // Check if cache is fresh enough (less than 3 hours old)
+      const isCacheFresh = cachedPlayer.updatedAt && 
+        (new Date().getTime() - cachedPlayer.updatedAt.getTime()) < 3 * 60 * 60 * 1000;
+
+      // Return cached data
       const response = {
         data: {
           id: cachedPlayer.id,
@@ -176,43 +193,56 @@ export async function GET(
         },
         cacheStatus: {
           isStale: false,
-          isUpdating: true,
+          isUpdating: !isCacheFresh, // Only update if cache is stale
         },
       };
 
-      // Start background update
-      fetchFreshData(playerName, region)
-        .then(async ({ playerData, formattedData }) => {
-          // Update cache
-          await updatePlayerCache(playerData);
+      // Start background update only if cache is stale
+      if (!isCacheFresh) {
+        // Use Promise.race to timeout the background update after 10 seconds
+        Promise.race([
+          fetchFreshData(playerName, region),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Background update timeout')), 10000)
+          )
+        ])
+          .then(async (result) => {
+            const { playerData, formattedData } = result as FreshDataResult;
+            // Update cache
+            await updatePlayerCache(playerData);
 
-          // Send fresh data via SSE
-          sendUpdate(playerName, {
-            data: formattedData,
-            cacheStatus: {
-              isStale: false,
-              isUpdating: false,
-            },
-          });
-        })
-        .catch((error) => {
-          console.error("Background update failed:", error);
-          if (cachedPlayer) {
+            // Send fresh data via SSE
             sendUpdate(playerName, {
-              data: response.data,
+              data: formattedData,
               cacheStatus: {
-                isStale: true,
+                isStale: false,
                 isUpdating: false,
               },
             });
-          } else {
-            // Send error via SSE
-            sendUpdate(playerName, {
-              error: "Failed to update player data",
-              details: error instanceof Error ? error.message : "Unknown error",
-            });
-          }
-        });
+          })
+          .catch((error) => {
+            console.error("Background update failed:", error);
+            // Only mark as stale if it's not a timeout
+            if (error.message !== 'Background update timeout') {
+              sendUpdate(playerName, {
+                data: response.data,
+                cacheStatus: {
+                  isStale: true,
+                  isUpdating: false,
+                },
+              });
+            } else {
+              // For timeouts, just stop the loading state
+              sendUpdate(playerName, {
+                data: response.data,
+                cacheStatus: {
+                  isStale: false,
+                  isUpdating: false,
+                },
+              });
+            }
+          });
+      }
 
       return NextResponse.json(response);
     }
@@ -256,12 +286,4 @@ export async function GET(
       { status }
     );
   }
-}
-
-// Helper function to fetch fresh data from Albion API
-async function fetchFreshData(playerName: string, region: string) {
-  const playerId = await findPlayer(playerName);
-  const playerData = await fetchPlayerDetails(playerId);
-  const formattedData = await formatPlayerData(playerData, region);
-  return { playerData, formattedData };
 }
