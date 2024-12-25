@@ -146,6 +146,24 @@ export default function Profile() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
+  // Add event listener for loading more events
+  useEffect(() => {
+    const handleLoadMore = (event: CustomEvent<{ newEvents: MurderLedgerEvent[], playerName: string }>) => {
+      const { newEvents, playerName: eventPlayerName } = event.detail;
+      
+      // Only update if the events are for the current player
+      if (selectedPlayer && eventPlayerName.toLowerCase() === selectedPlayer.name.toLowerCase()) {
+        setSelectedPlayer(prev => prev ? {
+          ...prev,
+          events: [...(prev.events || []), ...newEvents]
+        } : null);
+      }
+    };
+
+    window.addEventListener('loadMoreEvents', handleLoadMore as EventListener);
+    return () => window.removeEventListener('loadMoreEvents', handleLoadMore as EventListener);
+  }, [selectedPlayer]);
+
   const handleSearch = async (name = playerName, selectedRegion = region) => {
     if (!name.trim()) return
 

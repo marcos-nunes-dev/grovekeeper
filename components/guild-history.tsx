@@ -59,27 +59,27 @@ export default function GuildHistory({ playerName, region, currentGuild }: Guild
   )
 
   // Use separate hook for deep search updates
-  useEventSource<ApiResponse>(
-    isDeepSearching ? `/api/player/${encodeURIComponent(playerName)}/history/updates?region=${region}&deep=true` : null,
-    (update) => {
-      if ('error' in update) {
-        setCacheStatus({ isStale: true, isUpdating: false })
-        if (update.error === "Historical data has already been fetched for this player") {
-          setHasDeepSearched(true)
-        }
-      } else if (update.data) {
-        setGuildHistory(update.data)
-        setCacheStatus(update.cacheStatus || { isStale: false, isUpdating: false })
-      }
-    },
-    {
-      retryOnError: false,
-      onError: () => {
-        setIsDeepSearching(false)
-        setCacheStatus(prev => ({ ...prev, isUpdating: false, isStale: true }))
-      }
-    }
-  )
+  // useEventSource<ApiResponse>(
+  //   isDeepSearching ? `/api/player/${encodeURIComponent(playerName)}/history/updates?region=${region}&deep=true` : null,
+  //   (update) => {
+  //     if ('error' in update) {
+  //       setCacheStatus({ isStale: true, isUpdating: false })
+  //       if (update.error === "Historical data has already been fetched for this player") {
+  //         setHasDeepSearched(true)
+  //       }
+  //     } else if (update.data) {
+  //       setGuildHistory(update.data)
+  //       setCacheStatus(update.cacheStatus || { isStale: false, isUpdating: false })
+  //     }
+  //   },
+  //   {
+  //     retryOnError: false,
+  //     onError: () => {
+  //       setIsDeepSearching(false)
+  //       setCacheStatus(prev => ({ ...prev, isUpdating: false, isStale: true }))
+  //     }
+  //   }
+  // )
 
   useEffect(() => {
     return () => {
@@ -88,60 +88,60 @@ export default function GuildHistory({ playerName, region, currentGuild }: Guild
   }, [])
 
   useEffect(() => {
-    async function fetchGuildHistory() {
-      try {
-        if (!isMounted.current) return
-        setLoading(true)
-        setError(null)
+    // async function fetchGuildHistory() {
+    //   try {
+    //     if (!isMounted.current) return
+    //     setLoading(true)
+    //     setError(null)
 
-        const response = await fetch(
-          `/api/player/${encodeURIComponent(playerName)}/history?region=${region}&currentGuild=${encodeURIComponent(currentGuild || '')}`
-        )
-        const data = await response.json() as ApiResponse
+    //     const response = await fetch(
+    //       `/api/player/${encodeURIComponent(playerName)}/history?region=${region}&currentGuild=${encodeURIComponent(currentGuild || '')}`
+    //     )
+    //     const data = await response.json() as ApiResponse
 
-        if (!isMounted.current) return
+    //     if (!isMounted.current) return
 
-        if ('error' in data && data.error) {
-          setError(data.error)
-          setCacheStatus({ isStale: false, isUpdating: false })
-        } else if (data.data) {
-          setGuildHistory(data.data)
-          setCacheStatus(data.cacheStatus || { isStale: false, isUpdating: true })
-          setHasDeepSearched(data.hasDeepSearched || false)
-        }
-      } catch (error) {
-        if (!isMounted.current) return
-        setError(error instanceof Error ? error.message : 'An error occurred')
-        setCacheStatus({ isStale: false, isUpdating: false })
-      } finally {
-        if (isMounted.current) {
-          setLoading(false)
-        }
-      }
-    }
+    //     if ('error' in data && data.error) {
+    //       setError(data.error)
+    //       setCacheStatus({ isStale: false, isUpdating: false })
+    //     } else if (data.data) {
+    //       setGuildHistory(data.data)
+    //       setCacheStatus(data.cacheStatus || { isStale: false, isUpdating: true })
+    //       setHasDeepSearched(data.hasDeepSearched || false)
+    //     }
+    //   } catch (error) {
+    //     if (!isMounted.current) return
+    //     setError(error instanceof Error ? error.message : 'An error occurred')
+    //     setCacheStatus({ isStale: false, isUpdating: false })
+    //   } finally {
+    //     if (isMounted.current) {
+    //       setLoading(false)
+    //     }
+    //   }
+    // }
 
-    fetchGuildHistory()
+    // fetchGuildHistory()
   }, [playerName, region, currentGuild])
 
   const handleDeepSearch = async () => {
-    try {
-      setIsDeepSearching(true)
-      setError(null)
+    // try {
+    //   setIsDeepSearching(true)
+    //   setError(null)
 
-      const response = await fetch(
-        `/api/player/${encodeURIComponent(playerName)}/history?region=${region}&deep=true`
-      )
-      const data = await response.json() as ApiResponse
+    //   const response = await fetch(
+    //     `/api/player/${encodeURIComponent(playerName)}/history?region=${region}&deep=true`
+    //   )
+    //   const data = await response.json() as ApiResponse
 
-      if ('error' in data && data.error) {
-        setError(data.error)
-        if (data.error === "Historical data has already been fetched for this player") {
-          setHasDeepSearched(true)
-        }
-      }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
-    }
+    //   if ('error' in data && data.error) {
+    //     setError(data.error)
+    //     if (data.error === "Historical data has already been fetched for this player") {
+    //       setHasDeepSearched(true)
+    //     }
+    //   }
+    // } catch (error) {
+    //   setError(error instanceof Error ? error.message : 'An error occurred')
+    // }
   }
 
   if (error) {

@@ -38,6 +38,8 @@ function PlayerProfile({
 }: PlayerProfileProps) {
   const [copied, setCopied] = useState(false);
   const [isLoadingInitial, setIsLoadingInitial] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreEvents, setHasMoreEvents] = useState(true);
 
   const handleShare = async () => {
     try {
@@ -46,6 +48,34 @@ function PlayerProfile({
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy URL:', err);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (isLoadingMore) return;
+    setIsLoadingMore(true);
+
+    try {
+      const skip = events.length;
+      const response = await fetch(`/api/player/${encodeURIComponent(playerData.name)}/events?limit=10&skip=${skip}`);
+      const data = await response.json();
+
+      if (data.data.length === 0) {
+        setHasMoreEvents(false);
+      }
+
+      // Emit an event to update the parent's state
+      const customEvent = new CustomEvent('loadMoreEvents', {
+        detail: {
+          newEvents: data.data,
+          playerName: playerData.name
+        }
+      });
+      window.dispatchEvent(customEvent);
+    } catch (error) {
+      console.error('Failed to load more events:', error);
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
@@ -131,6 +161,9 @@ function PlayerProfile({
           isCheckingNewEvents={isCheckingNewEvents}
           isLoadingInitial={isLoadingInitial}
           playerName={playerData.name}
+          onLoadMore={handleLoadMore}
+          isLoadingMore={isLoadingMore}
+          hasMoreEvents={hasMoreEvents}
         />
       </div>
 

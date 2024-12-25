@@ -25,6 +25,9 @@ export interface RecentActivitiesProps {
   isCheckingNewEvents: boolean;
   isLoadingInitial: boolean;
   playerName: string;
+  onLoadMore: () => void;
+  isLoadingMore?: boolean;
+  hasMoreEvents?: boolean;
 }
 
 export interface GuildHistoryProps {

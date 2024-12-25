@@ -63,6 +63,12 @@ export interface MurderLedgerEvent {
     kill_fame: number;
     damage_done: number;
     healing_done: number;
+    group_members?: Array<{
+      name: string;
+      damage_done: number;
+      healing_done: number;
+      kill_fame: number;
+    }>;
   };
   victim: {
     name: string;

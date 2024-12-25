@@ -22,8 +22,41 @@ function PlayerInfo({ playerData, cacheStatus, onShare, copied }: PlayerInfoProp
   const craftingPercentage = (playerData.craftingTotal / totalFame) * 100;
 
   return (
-    <Card className="bg-[#0D1117] border-zinc-800/50 p-4 rounded-lg">
-      <div className="flex items-start justify-between mb-4">
+    <Card className="bg-[#0D1117] border-zinc-800/50 p-4 rounded-lg relative">
+      <div className="absolute top-0 right-0">
+          <TooltipProvider>
+            {copied ? (
+              <Tooltip open>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={onShare}>
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-[#00E6B4] border-0">
+                  <div className="flex items-center gap-2 text-black">
+                    <Check className="h-4 w-4" />
+                    <span>Copied to clipboard!</span>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={onShare}>
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <div className="flex items-center gap-2">
+                    <Share2 className="h-4 w-4" />
+                    <span>Share profile</span>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </TooltipProvider>
+        </div>
+      <div className="flex items-start justify-between mb-4">        
         <div className="flex items-center gap-3 -translate-x-4">
           <div className="relative w-24 h-24">
             <Image
@@ -61,40 +94,7 @@ function PlayerInfo({ playerData, cacheStatus, onShare, copied }: PlayerInfoProp
               </TooltipProvider>
             )}
           </div>
-        </div>
-        <div className="relative">
-          <TooltipProvider>
-            {copied ? (
-              <Tooltip open>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={onShare}>
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="bg-[#00E6B4] border-0">
-                  <div className="flex items-center gap-2 text-black">
-                    <Check className="h-4 w-4" />
-                    <span>Copied to clipboard!</span>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={onShare}>
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <div className="flex items-center gap-2">
-                    <Share2 className="h-4 w-4" />
-                    <span>Share profile</span>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </TooltipProvider>
-        </div>
+        </div>        
       </div>
 
       <div className="space-y-4">
