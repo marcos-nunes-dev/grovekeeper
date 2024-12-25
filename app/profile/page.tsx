@@ -15,8 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useEventSource } from '@/lib/hooks/useEventSource'
-import { getCacheStatus } from '@/lib/utils/cache'
-import { MurderLedgerEvent, EventsResponse } from '@/components/player-profile'
+import { MurderLedgerEvent } from '@/types/albion'
+
+interface EventsResponse {
+  data: MurderLedgerEvent[]
+  isCheckingNewEvents: boolean
+}
 
 declare global {
   interface Window {
@@ -51,8 +55,9 @@ interface CacheStatus {
 }
 
 interface SuccessResponse {
-  data: PlayerData
+  data: PlayerData | PlayerWithEvents
   cacheStatus: CacheStatus
+  isCheckingNewEvents?: boolean
 }
 
 interface ErrorResponse {
@@ -68,12 +73,6 @@ function isErrorResponse(response: ApiResponse): response is ErrorResponse {
 
 interface PlayerWithEvents extends PlayerData {
   events?: MurderLedgerEvent[]
-}
-
-interface SuccessResponse {
-  data: PlayerWithEvents
-  cacheStatus: CacheStatus
-  isCheckingNewEvents?: boolean
 }
 
 export default function Profile() {
@@ -94,10 +93,10 @@ export default function Profile() {
       if ('error' in update) {
         setCacheStatus({ isStale: true, isUpdating: false })
       } else {
-        // Only update the player data, preserve the events
+        // Preserve all existing player data and only update the fields from the update
         setSelectedPlayer(prev => prev ? {
+          ...prev,
           ...update.data,
-          events: prev.events
         } : update.data)
         setCacheStatus(update.cacheStatus)
       }
