@@ -26,7 +26,8 @@ export async function GET(
       activeSpellSlots: data.activeSpellSlots || 0,
       passiveSpellSlots: data.passiveSpellSlots || 0,
       activeSlots: data.activeSlots,
-      passiveSlots: data.passiveSlots
+      passiveSlots: data.passiveSlots,
+      twoHanded: data.twoHanded || false
     })
 
   } catch (error) {

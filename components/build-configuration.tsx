@@ -45,6 +45,7 @@ export default function BuildConfiguration({
 }: BuildConfigurationProps) {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isTwoHanded, setIsTwoHanded] = useState(false)
 
   useEffect(() => {
     if (!build.spells) {
@@ -65,10 +66,24 @@ export default function BuildConfiguration({
     setIsModalOpen(true)
   }
 
-  const handleItemSelect = (item: AlbionItem) => {
+  const handleItemSelect = async (item: AlbionItem) => {
     if (selectedSlot) {
       const updatedEquipment = { ...build.equipment }
       updatedEquipment[selectedSlot as keyof typeof build.equipment] = item.id
+      
+      if (selectedSlot === 'mainHand') {
+        try {
+          const response = await fetch(`/api/items/${item.id}/data`)
+          const data = await response.json()
+          setIsTwoHanded(data.twoHanded)
+          
+          if (data.twoHanded) {
+            updatedEquipment.offHand = undefined
+          }
+        } catch (error) {
+          console.error('Failed to check if weapon is two-handed:', error)
+        }
+      }
       
       const updatedSpells = { ...build.spells }
       if (!updatedSpells[item.id]) {
@@ -98,6 +113,14 @@ export default function BuildConfiguration({
     spellArray[slotIndex] = spellIndex
     
     updateBuild({ ...build, spells: updatedSpells })
+  }
+
+  const isSlotDisabled = (slot: string) => {
+    // Disable offhand slot if main weapon is two-handed
+    if (slot === 'offHand' && isTwoHanded) {
+      return true
+    }
+    return false
   }
 
   return (
@@ -255,9 +278,10 @@ export default function BuildConfiguration({
                       "aspect-square rounded border p-1 relative",
                       slot.name 
                         ? "border-zinc-800/50 bg-[#161B22] hover:bg-[#252D38] transition-colors cursor-pointer" 
-                        : "border-transparent bg-zinc-800/20 cursor-not-allowed"
+                        : "border-transparent bg-zinc-800/20 cursor-not-allowed",
+                      slot.name === 'offHand' && isTwoHanded && "opacity-50 cursor-not-allowed hover:bg-[#161B22]"
                     )}
-                    onClick={() => slot.name && handleTileClick(slot.name)}
+                    onClick={() => slot.name && !isSlotDisabled(slot.name) && handleTileClick(slot.name)}
                   >
                     {slot.name && build.equipment[slot.name as keyof typeof build.equipment] && (
                       <Image
@@ -268,7 +292,7 @@ export default function BuildConfiguration({
                         className="w-full h-full object-contain"
                       />
                     )}
-                    {slot.name && (
+                    {slot.name && !build.equipment[slot.name as keyof typeof build.equipment] && (
                       <div className="absolute top-1 left-1 text-xs font-medium text-zinc-500">
                         {slot.name}
                       </div>
@@ -402,7 +426,6 @@ function SelectedItem({ name, onSpellSelect, selectedSpells = { activeSpells: []
           {/* Active Spell Slots */}
           {(data?.activeSpellSlots ?? 0) > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500 mr-1">Active</span>
               <div className="flex gap-2">
                 {Array.from({ length: data?.activeSpellSlots ?? 0 }).map((_, slotIndex) => (
                   <SpellSelectionPopover
@@ -421,7 +444,6 @@ function SelectedItem({ name, onSpellSelect, selectedSpells = { activeSpells: []
           {/* Passive Spell Slots */}
           {(data?.passiveSpellSlots ?? 0) > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500 mr-1">Passive</span>
               <div className="flex gap-2">
                 {Array.from({ length: data?.passiveSpellSlots ?? 0 }).map((_, slotIndex) => (
                   <SpellSelectionPopover

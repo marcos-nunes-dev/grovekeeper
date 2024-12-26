@@ -36,6 +36,9 @@ export interface AlbionSpell {
   localizedNames: {
     [key: string]: string
   }
+  localizedDescriptions: {
+    [key: string]: string
+  }
   uiSprite: string
 }
 
@@ -48,4 +51,5 @@ export interface ItemData {
   passiveSlots: {
     [key: number]: AlbionSpell[]
   }
+  twoHanded: boolean
 } 
