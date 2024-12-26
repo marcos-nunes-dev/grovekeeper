@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { AlbionItem } from '@/lib/albion-items'
 import Image from 'next/image'
 import ItemSelectionModal from './item-selection-modal'
-import type { Build } from '@/lib/types/composition'
+import type { Build, Swap } from '@/lib/types/composition'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { SpellSelectionPopover } from './spell-selection-popover'
 
@@ -17,6 +17,7 @@ interface BuildConfigurationProps {
   updateBuild: (updatedBuild: Build) => void
   removeBuild?: () => void
   showDismissible?: boolean
+  readOnly?: boolean
 }
 
 const slotAssignments = [
@@ -36,18 +37,13 @@ const slotAssignments = [
 
 type ItemData = import('@/lib/types/composition').ItemData
 
-const buildStatusOptions = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'published', label: 'Published' },
-  { value: 'stale', label: 'Stale' }
-]
-
 export default function BuildConfiguration({
   build,
   buildIndex,
   updateBuild,
   removeBuild,
   showDismissible = false,
+  readOnly = false
 }: BuildConfigurationProps) {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -60,14 +56,17 @@ export default function BuildConfiguration({
   }, [build, updateBuild])
 
   const updateBuildName = (newName: string) => {
+    if (readOnly) return
     updateBuild({ ...build, name: newName })
   }
 
   const updateInstructions = (newInstructions: string) => {
+    if (readOnly) return
     updateBuild({ ...build, instructions: newInstructions })
   }
 
   const handleTileClick = (slot: string) => {
+    if (readOnly) return
     setSelectedSlot(slot)
     setIsModalOpen(true)
   }
@@ -143,10 +142,6 @@ export default function BuildConfiguration({
     return false
   }
 
-  const updateBuildStatus = (status: string) => {
-    updateBuild({ ...build, status: status as BuildStatus })
-  }
-
   return (
     <div className="bg-[#0D1117] rounded-lg p-6 border border-zinc-800/50 hover:border-zinc-700/50 transition-colors">
       <div className="flex items-center justify-between mb-6">
@@ -161,39 +156,11 @@ export default function BuildConfiguration({
               onChange={(e) => updateBuildName(e.target.value)}
               className="bg-[#161B22] border-zinc-800/50 focus-visible:ring-zinc-700"
               placeholder="Enter build name"
+              readOnly={readOnly}
             />
           </div>
-          <div>
-            <Label htmlFor={`build-status-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-400">
-              Status
-            </Label>
-            <Select value={build.status} onValueChange={updateBuildStatus}>
-              <SelectTrigger 
-                id={`build-status-${build.id}`}
-                className="w-full h-10 bg-[#161B22] border-zinc-800 text-zinc-300 hover:bg-[#1C2128] focus:ring-zinc-700"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1C2128] border-zinc-800">
-                {buildStatusOptions.map(option => (
-                  <SelectItem 
-                    key={option.value} 
-                    value={option.value}
-                    className={cn(
-                      "text-zinc-300 hover:bg-zinc-800 cursor-pointer",
-                      option.value === 'published' && "text-green-400",
-                      option.value === 'draft' && "text-yellow-400",
-                      option.value === 'stale' && "text-red-400"
-                    )}
-                  >
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
-        {showDismissible && (
+        {!readOnly && showDismissible && (
           <div className="flex items-center gap-4">
             <span className="text-xs text-zinc-500 px-2 py-1 bg-[#161B22] rounded-md">
               Build {buildIndex + 1}
@@ -208,7 +175,7 @@ export default function BuildConfiguration({
             )}
           </div>
         )}
-        {!showDismissible && removeBuild && (
+        {!readOnly && removeBuild && (
           <button
             onClick={removeBuild}
             className="text-zinc-400 hover:text-zinc-300 transition-colors"
@@ -225,7 +192,8 @@ export default function BuildConfiguration({
           </Label>
           <Select
             value={build.role || ''}
-            onValueChange={(value) => updateBuild({ ...build, role: value })}
+            onValueChange={(value) => !readOnly && updateBuild({ ...build, role: value })}
+            disabled={readOnly}
           >
             <SelectTrigger 
               id={`build-role-${build.id}`} 
@@ -249,7 +217,8 @@ export default function BuildConfiguration({
           </Label>
           <Select
             value={build.content || ''}
-            onValueChange={(value) => updateBuild({ ...build, content: value })}
+            onValueChange={(value) => !readOnly && updateBuild({ ...build, content: value })}
+            disabled={readOnly}
           >
             <SelectTrigger 
               id={`build-content-${build.id}`} 
@@ -276,7 +245,8 @@ export default function BuildConfiguration({
           </Label>
           <Select
             value={build.difficulty || ''}
-            onValueChange={(value) => updateBuild({ ...build, difficulty: value })}
+            onValueChange={(value) => !readOnly && updateBuild({ ...build, difficulty: value })}
+            disabled={readOnly}
           >
             <SelectTrigger 
               id={`build-difficulty-${build.id}`} 
@@ -299,7 +269,8 @@ export default function BuildConfiguration({
           </Label>
           <Select
             value={build.costTier || ''}
-            onValueChange={(value) => updateBuild({ ...build, costTier: value })}
+            onValueChange={(value) => !readOnly && updateBuild({ ...build, costTier: value })}
+            disabled={readOnly}
           >
             <SelectTrigger 
               id={`build-cost-${build.id}`} 
@@ -397,6 +368,7 @@ export default function BuildConfiguration({
             onChange={(e) => updateInstructions(e.target.value)}
             placeholder="Enter instructions on how to play this build..."
             className="flex-1 w-full bg-[#161B22] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-zinc-300 placeholder-zinc-500 resize-none"
+            readOnly={readOnly}
           />
         </div>
       </div>

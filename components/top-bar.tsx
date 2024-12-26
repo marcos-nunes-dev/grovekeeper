@@ -12,10 +12,18 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, User } from 'lucide-react'
+import { LogOut } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export default function TopBar() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (status !== 'loading') {
+      setIsLoading(false)
+    }
+  }, [status])
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50 border-b bg-[#0D1117] border-zinc-800">
@@ -40,7 +48,11 @@ export default function TopBar() {
             English
           </Button>
           
-          {session ? (
+          {isLoading ? (
+            <Button variant="ghost" className="relative h-10 w-10 p-0 rounded-full overflow-hidden border border-zinc-800">
+              <div className="w-full h-full rounded-full bg-zinc-800 animate-pulse" />
+            </Button>
+          ) : session ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 p-0 rounded-full overflow-hidden border border-zinc-800">
@@ -64,7 +76,8 @@ export default function TopBar() {
                   </div>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut()} className="text-red-500 hover:text-red-400">
+                <DropdownMenuItem onClick={() => signOut()} className="text-red-500 hover:text-red-400 flex items-center gap-2">
+                  <LogOut className="w-4 h-4" />
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
