@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/select"
 import { useEventSource } from '@/lib/hooks/useEventSource'
 import { MurderLedgerEvent } from '@/types/albion'
+import { useProfileStats } from '@/lib/hooks/useProfileStats'
+import { AnimatedCounter } from '@/components/ui/animated-counter'
 
 interface EventsResponse {
   data: MurderLedgerEvent[]
@@ -30,8 +32,6 @@ declare global {
 
 const ALBION_REGIONS = [
   { id: 'west', name: 'West', server: 'https://west.albion-online-data.com' },
-  { id: 'east', name: 'East', server: 'https://east.albion-online-data.com' },
-  { id: 'europe', name: 'Europe', server: 'https://europe.albion-online-data.com' },
 ] as const
 
 interface PlayerData {
@@ -85,6 +85,9 @@ export default function Profile() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isCheckingNewEvents, setIsCheckingNewEvents] = useState(false)
+
+  // Add profile stats
+  const { data: stats, isLoading: isLoadingStats } = useProfileStats()
 
   // Use our custom hook for EventSource
   useEventSource<ApiResponse>(
@@ -215,8 +218,27 @@ export default function Profile() {
         title="Player Profile"
         subtitle="View detailed statistics and information about Albion Online players"
         stats={[
-          { value: '1M+', label: 'Players Tracked' },
-          { value: '100B+', label: 'Total Fame' }
+          { 
+            value: <AnimatedCounter 
+              value={stats?.playersTracked || 0} 
+              showZeroAsQuestionMarks={false} 
+            />, 
+            label: 'Players Tracked' 
+          },
+          { 
+            value: <AnimatedCounter 
+              value={stats?.totalPvpFame || 0} 
+              showZeroAsQuestionMarks={false} 
+            />, 
+            label: 'Total PvP Fame' 
+          },
+          { 
+            value: <AnimatedCounter 
+              value={stats?.totalPveFame || 0} 
+              showZeroAsQuestionMarks={false} 
+            />, 
+            label: 'Total PvE Fame' 
+          }
         ]}
       >
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-zinc-800 p-6 space-y-4">
@@ -224,20 +246,17 @@ export default function Profile() {
             <div className="flex items-center gap-2">
               <Search className="w-5 h-5 text-zinc-400" />
               <div className="flex-1 flex items-center gap-2">
-                <Select value={region} onValueChange={handleRegionChange}>
+                <Select value={region} onValueChange={handleRegionChange} disabled>
                   <SelectTrigger className="w-[140px] bg-transparent border-0 focus:ring-0 focus:ring-offset-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-[#0D1117]/95 border-zinc-800 backdrop-blur-sm">
-                    {ALBION_REGIONS.map((region) => (
-                      <SelectItem 
-                        key={region.id} 
-                        value={region.id}
-                        className="text-zinc-300 focus:bg-zinc-800/50 focus:text-zinc-100"
-                      >
-                        {region.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem 
+                      value="west"
+                      className="text-zinc-300 focus:bg-zinc-800/50 focus:text-zinc-100"
+                    >
+                      West
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="w-px h-6 bg-zinc-800" />
