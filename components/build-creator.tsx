@@ -2,35 +2,13 @@
 
 import { useState } from 'react'
 import BuildConfiguration from './build-configuration'
-
-interface Build {
-  id: string
-  name: string
-  equipment: {
-    mainHand?: string
-    offHand?: string
-    head?: string
-    chest?: string
-    shoes?: string
-    cape?: string
-    food?: string
-    potion?: string
-    mount?: string
-  }
-  skills: {
-    q?: string
-    w?: string
-    e?: string
-    r?: string
-    passive?: string
-  }
-  instructions: string
-}
+import { Button } from '@/components/ui/button'
+import type { Build } from '@/lib/types/composition'
 
 interface BuildCreatorProps {
   initialBuilds?: Build[]
   onBuildsChange?: (builds: Build[]) => void
-  showDismissible?: boolean // New prop to determine if the dismissible option should be shown
+  showDismissible?: boolean
 }
 
 export default function BuildCreator({ initialBuilds, onBuildsChange, showDismissible = false }: BuildCreatorProps) {
@@ -57,6 +35,10 @@ export default function BuildCreator({ initialBuilds, onBuildsChange, showDismis
     onBuildsChange?.(newBuilds)
   }
 
+  const handleSave = () => {
+    console.log('Saving build:', builds[0])
+  }
+
   return (
     <div className="space-y-6">
       {builds.map((build, index) => (
@@ -69,6 +51,13 @@ export default function BuildCreator({ initialBuilds, onBuildsChange, showDismis
           showDismissible={showDismissible}
         />
       ))}
+      
+      <Button
+        onClick={handleSave}
+        className="w-full bg-[#00E6B4] text-black hover:bg-[#1BECA0] font-semibold"
+      >
+        Save Build
+      </Button>
     </div>
   )
 }

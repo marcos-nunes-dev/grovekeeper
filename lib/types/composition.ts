@@ -1,6 +1,10 @@
 export interface Build {
   id: string
   name: string
+  role?: string
+  content?: string
+  difficulty?: string
+  costTier?: string
   equipment: {
     mainHand?: string
     offHand?: string

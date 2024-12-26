@@ -1,10 +1,13 @@
 import BuildCreator from '@/components/build-creator'
+import PageHero from '@/components/page-hero'
 
 export default function CreateBuild() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Create New Build</h1>
-      <BuildCreator showDismissible={false} /> {/* Disable dismissible option for individual build creation */}
+    <div>
+      <PageHero title="Create New Build" children={null} />
+      <div className="max-w-7xl mx-auto mb-10">
+        <BuildCreator showDismissible={false} />
+      </div>
     </div>
   )
 }

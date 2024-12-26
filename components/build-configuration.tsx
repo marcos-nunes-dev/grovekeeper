@@ -8,13 +8,14 @@ import { AlbionItem } from '@/lib/albion-items'
 import Image from 'next/image'
 import ItemSelectionModal from './item-selection-modal'
 import type { Build } from '@/lib/types/composition'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 
 interface BuildConfigurationProps {
   build: Build
   buildIndex: number
   updateBuild: (updatedBuild: Build) => void
-  removeBuild?: () => void // Make this optional
-  showDismissible?: boolean // New prop to determine if the dismissible option should be shown
+  removeBuild?: () => void
+  showDismissible?: boolean
 }
 
 const slotAssignments = [
@@ -37,7 +38,7 @@ export default function BuildConfiguration({
   buildIndex,
   updateBuild,
   removeBuild,
-  showDismissible = false, // Default to false
+  showDismissible = false,
 }: BuildConfigurationProps) {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -65,19 +66,36 @@ export default function BuildConfiguration({
   }
 
   return (
-    <div className="bg-[#161B22] rounded-lg p-6 border border-zinc-800/50 hover:border-zinc-700/50 transition-colors">
+    <div className="bg-[#0D1117] rounded-lg p-6 border border-zinc-800/50 hover:border-zinc-700/50 transition-colors">
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
+        <div className="flex-1">
+          <Label htmlFor={`build-name-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-400">
+            Build Name
+          </Label>
           <Input
+            id={`build-name-${build.id}`}
             value={build.name}
             onChange={(e) => updateBuildName(e.target.value)}
-            className="px-3 py-1 bg-[#1C2128] border-zinc-800/50"
+            className="bg-[#161B22] border-zinc-800/50 focus-visible:ring-zinc-700"
+            placeholder="Enter build name"
           />
-          <span className="text-xs text-zinc-500 px-2 py-1 bg-[#1C2128] rounded-md">
-            Build {buildIndex + 1}
-          </span>
         </div>
-        {showDismissible && removeBuild && (
+        {showDismissible && (
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-zinc-500 px-2 py-1 bg-[#161B22] rounded-md">
+              Build {buildIndex + 1}
+            </span>
+            {removeBuild && (
+              <button
+                onClick={removeBuild}
+                className="text-zinc-400 hover:text-zinc-300 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        )}
+        {!showDismissible && removeBuild && (
           <button
             onClick={removeBuild}
             className="text-zinc-400 hover:text-zinc-300 transition-colors"
@@ -87,10 +105,109 @@ export default function BuildConfiguration({
         )}
       </div>
 
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div>
+          <Label htmlFor={`build-role-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-400">
+            Role
+          </Label>
+          <Select
+            value={build.role || ''}
+            onValueChange={(value) => updateBuild({ ...build, role: value })}
+          >
+            <SelectTrigger 
+              id={`build-role-${build.id}`} 
+              className="w-full h-10 bg-[#161B22] border-zinc-800 text-zinc-300 hover:bg-[#1C2128] focus:ring-zinc-700"
+            >
+              <SelectValue placeholder="Select role" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1C2128] border-zinc-800">
+              <SelectItem value="Tank">Tank</SelectItem>
+              <SelectItem value="Healer">Healer</SelectItem>
+              <SelectItem value="RDPS">Ranged DPS</SelectItem>
+              <SelectItem value="MDPS">Melee DPS</SelectItem>
+              <SelectItem value="Support">Support</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor={`build-content-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-400">
+            Content Type
+          </Label>
+          <Select
+            value={build.content || ''}
+            onValueChange={(value) => updateBuild({ ...build, content: value })}
+          >
+            <SelectTrigger 
+              id={`build-content-${build.id}`} 
+              className="w-full h-10 bg-[#161B22] border-zinc-800 text-zinc-300 hover:bg-[#1C2128] focus:ring-zinc-700"
+            >
+              <SelectValue placeholder="Select content" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1C2128] border-zinc-800">
+              <SelectItem value="ZvZ">ZvZ (Zerg vs Zerg)</SelectItem>
+              <SelectItem value="Crystal">Crystal League</SelectItem>
+              <SelectItem value="SmallScale">Small Scale PvP</SelectItem>
+              <SelectItem value="Ganking">Ganking</SelectItem>
+              <SelectItem value="PvE">PvE / Fame Farming</SelectItem>
+              <SelectItem value="HCE">HCE (Hardcore Expeditions)</SelectItem>
+              <SelectItem value="Corrupted">Corrupted Dungeons</SelectItem>
+              <SelectItem value="Arena">Arena / Circle of Strife</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor={`build-difficulty-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-400">
+            Difficulty
+          </Label>
+          <Select
+            value={build.difficulty || ''}
+            onValueChange={(value) => updateBuild({ ...build, difficulty: value })}
+          >
+            <SelectTrigger 
+              id={`build-difficulty-${build.id}`} 
+              className="w-full h-10 bg-[#161B22] border-zinc-800 text-zinc-300 hover:bg-[#1C2128] focus:ring-zinc-700"
+            >
+              <SelectValue placeholder="Select difficulty" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1C2128] border-zinc-800">
+              <SelectItem value="Beginner">Beginner Friendly</SelectItem>
+              <SelectItem value="Intermediate">Intermediate</SelectItem>
+              <SelectItem value="Advanced">Advanced</SelectItem>
+              <SelectItem value="Expert">Expert</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor={`build-cost-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-400">
+            Cost Tier
+          </Label>
+          <Select
+            value={build.costTier || ''}
+            onValueChange={(value) => updateBuild({ ...build, costTier: value })}
+          >
+            <SelectTrigger 
+              id={`build-cost-${build.id}`} 
+              className="w-full h-10 bg-[#161B22] border-zinc-800 text-zinc-300 hover:bg-[#1C2128] focus:ring-zinc-700"
+            >
+              <SelectValue placeholder="Select cost tier" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1C2128] border-zinc-800">
+              <SelectItem value="Budget">Budget (4.1-6.1)</SelectItem>
+              <SelectItem value="Medium">Medium (6.2-7.1)</SelectItem>
+              <SelectItem value="High">High (7.2-8.1)</SelectItem>
+              <SelectItem value="Premium">Premium (8.2+)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="flex gap-8 mb-6">
         {/* Available Items Grid */}
         <div id="build-setup" className="flex-1 flex flex-col gap-4">
-          <Label htmlFor={`build-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-300">
+          <Label htmlFor={`build-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-400">
             Items assignment build
           </Label>
           <div className="flex gap-4 h-[400px]">
@@ -100,8 +217,10 @@ export default function BuildConfiguration({
                   <div
                     key={slot.index}
                     className={cn(
-                      "aspect-square rounded border border-zinc-800/50 p-1 relative cursor-pointer",
-                      "bg-[#1C2128] hover:bg-[#252D38] transition-colors"
+                      "aspect-square rounded border p-1 relative",
+                      slot.name 
+                        ? "border-zinc-800/50 bg-[#161B22] hover:bg-[#252D38] transition-colors cursor-pointer" 
+                        : "border-transparent bg-zinc-800/20 cursor-not-allowed"
                     )}
                     onClick={() => slot.name && handleTileClick(slot.name)}
                   >
@@ -114,9 +233,11 @@ export default function BuildConfiguration({
                         className="w-full h-full object-contain"
                       />
                     )}
-                    <div className="absolute top-1 left-1 text-xs font-medium text-zinc-500">
-                      {slot.name}
-                    </div>
+                    {slot.name && (
+                      <div className="absolute top-1 left-1 text-xs font-medium text-zinc-500">
+                        {slot.name}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {[10, 11, 12].map((index) => (
@@ -144,7 +265,7 @@ export default function BuildConfiguration({
 
         {/* Instructions Field */}
         <div className="w-1/2 flex flex-col">
-          <Label htmlFor={`instructions-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-300">
+          <Label htmlFor={`instructions-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-400">
             How to play this build
           </Label>
           <Textarea
@@ -152,7 +273,7 @@ export default function BuildConfiguration({
             value={build.instructions || ''}
             onChange={(e) => updateInstructions(e.target.value)}
             placeholder="Enter instructions on how to play this build..."
-            className="flex-1 w-full bg-[#1C2128] border-zinc-800/50 text-zinc-300 placeholder-zinc-500 resize-none"
+            className="flex-1 w-full bg-[#161B22] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-zinc-300 placeholder-zinc-500 resize-none"
           />
         </div>
       </div>
@@ -176,7 +297,7 @@ interface SelectedItemProps {
 function SelectedItem({ name, skills, hasPassive }: SelectedItemProps) {
   return (
     <div className="flex items-center gap-4">
-      <div className="w-12 h-12 bg-[#1C2128] rounded border border-zinc-800/50 flex-shrink-0">
+      <div className="w-12 h-12 bg-[#161B22] rounded border border-zinc-800/50 flex-shrink-0">
         {name && (
           <Image
             src={`https://render.albiononline.com/v1/item/${name}.png`}
@@ -191,11 +312,11 @@ function SelectedItem({ name, skills, hasPassive }: SelectedItemProps) {
         {Array.from({ length: skills }).map((_, index) => (
           <div
             key={index}
-            className="w-10 h-10 bg-[#1C2128] rounded-full border border-zinc-800/50"
+            className="w-10 h-10 bg-[#161B22] rounded-full border border-zinc-800/50"
           />
         ))}
         {hasPassive && (
-          <div className="w-10 h-10 bg-[#1C2128] rounded-full border border-zinc-800/50" />
+          <div className="w-10 h-10 bg-[#161B22] rounded-full border border-zinc-800/50" />
         )}
       </div>
     </div>

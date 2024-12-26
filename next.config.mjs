@@ -8,6 +8,11 @@ const nextConfig = {
         port: '',
         pathname: '/v1/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn.discordapp.com',
+        pathname: '/avatars/**',
+      },
     ],
   },
 };
