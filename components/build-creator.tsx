@@ -17,7 +17,7 @@ export default function BuildCreator({ initialBuilds, onBuildsChange, showDismis
       id: 'initial-build',
       name: 'New Build',
       equipment: {},
-      skills: {},
+      spells: {},
       instructions: ''
     }
   ])
@@ -39,6 +39,18 @@ export default function BuildCreator({ initialBuilds, onBuildsChange, showDismis
     console.log('Saving build:', builds[0])
   }
 
+  const createNewBuild = () => {
+    const newBuild: Build = {
+      id: crypto.randomUUID(),
+      name: '',
+      equipment: {},
+      spells: {}
+    }
+    const newBuilds = [...builds, newBuild]
+    setBuilds(newBuilds)
+    onBuildsChange?.(newBuilds)
+  }
+
   return (
     <div className="space-y-6">
       {builds.map((build, index) => (
@@ -58,6 +70,12 @@ export default function BuildCreator({ initialBuilds, onBuildsChange, showDismis
       >
         Save Build
       </Button>
+      <button
+        onClick={createNewBuild}
+        className="w-full p-2 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg text-zinc-400"
+      >
+        Add Build
+      </button>
     </div>
   )
 }

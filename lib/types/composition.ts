@@ -5,28 +5,47 @@ export interface Build {
   content?: string
   difficulty?: string
   costTier?: string
+  instructions?: string
   equipment: {
+    head?: string
+    cape?: string
     mainHand?: string
     offHand?: string
-    head?: string
     chest?: string
     shoes?: string
-    cape?: string
-    food?: string
     potion?: string
+    food?: string
     mount?: string
   }
-  skills: {
-    q?: string
-    w?: string
-    e?: string
-    r?: string
-    passive?: string
+  spells: {
+    [itemId: string]: {
+      activeSpells: number[]
+      passiveSpells: number[]
+    }
   }
-  instructions: string
 }
 
 export interface ClassSection {
   name: string
   builds: Build[]
+}
+
+export interface AlbionSpell {
+  spellType: 'active' | 'passive'
+  uniqueName: string
+  localizedNames: {
+    [key: string]: string
+  }
+  uiSprite: string
+}
+
+export interface ItemData {
+  activeSpellSlots: number
+  passiveSpellSlots: number
+  activeSlots: {
+    [key: number]: AlbionSpell[]
+  }
+  passiveSlots: {
+    [key: number]: AlbionSpell[]
+  }
 } 

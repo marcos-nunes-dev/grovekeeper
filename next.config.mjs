@@ -5,7 +5,6 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'render.albiononline.com',
-        port: '',
         pathname: '/v1/**',
       },
       {

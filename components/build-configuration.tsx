@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -9,6 +9,7 @@ import Image from 'next/image'
 import ItemSelectionModal from './item-selection-modal'
 import type { Build } from '@/lib/types/composition'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { SpellSelectionPopover } from './spell-selection-popover'
 
 interface BuildConfigurationProps {
   build: Build
@@ -33,6 +34,8 @@ const slotAssignments = [
   { index: 11, name: '' },
 ]
 
+type ItemData = import('@/lib/types/composition').ItemData
+
 export default function BuildConfiguration({
   build,
   buildIndex,
@@ -42,6 +45,12 @@ export default function BuildConfiguration({
 }: BuildConfigurationProps) {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  useEffect(() => {
+    if (!build.spells) {
+      updateBuild({ ...build, spells: {} })
+    }
+  }, [build, updateBuild])
 
   const updateBuildName = (newName: string) => {
     updateBuild({ ...build, name: newName })
@@ -60,9 +69,35 @@ export default function BuildConfiguration({
     if (selectedSlot) {
       const updatedEquipment = { ...build.equipment }
       updatedEquipment[selectedSlot as keyof typeof build.equipment] = item.id
-      updateBuild({ ...build, equipment: updatedEquipment })
+      
+      const updatedSpells = { ...build.spells }
+      if (!updatedSpells[item.id]) {
+        updatedSpells[item.id] = {
+          activeSpells: [],
+          passiveSpells: []
+        }
+      }
+      
+      updateBuild({ 
+        ...build, 
+        equipment: updatedEquipment,
+        spells: updatedSpells
+      })
       setIsModalOpen(false)
     }
+  }
+
+  const handleSpellSelect = (itemId: string, type: 'active' | 'passive', slotIndex: number, spellIndex: number) => {
+    const updatedSpells = build.spells || {}
+    
+    if (!updatedSpells[itemId]) {
+      updatedSpells[itemId] = { activeSpells: [], passiveSpells: [] }
+    }
+    
+    const spellArray = updatedSpells[itemId][`${type}Spells`]
+    spellArray[slotIndex] = spellIndex
+    
+    updateBuild({ ...build, spells: updatedSpells })
   }
 
   return (
@@ -251,14 +286,23 @@ export default function BuildConfiguration({
 
             {/* Selected Items with Skills */}
             <div className="flex-1 space-y-4">
-              {['mainHand', 'head', 'chest', 'shoes'].map((slot) => (
-                <SelectedItem
-                  key={slot}
-                  name={build.equipment[slot as keyof typeof build.equipment] || ''}
-                  skills={slot === 'mainHand' ? 3 : 1}
-                  hasPassive={true}
-                />
-              ))}
+              {['mainHand', 'head', 'chest', 'shoes'].map((slot) => {
+                const itemId = build.equipment[slot as keyof typeof build.equipment]
+                return (
+                  <SelectedItem
+                    key={slot}
+                    name={itemId || ''}
+                    selectedSpells={
+                      itemId && build.spells?.[itemId] 
+                        ? build.spells[itemId] 
+                        : { activeSpells: [], passiveSpells: [] }
+                    }
+                    onSpellSelect={(type, slotIndex, spellIndex) => 
+                      itemId && handleSpellSelect(itemId, type, slotIndex, spellIndex)
+                    }
+                  />
+                )
+              })}
             </div>
           </div>
         </div>
@@ -290,11 +334,51 @@ export default function BuildConfiguration({
 
 interface SelectedItemProps {
   name: string
-  skills: number
-  hasPassive?: boolean
+  onSpellSelect?: (type: 'active' | 'passive', slotIndex: number, spellIndex: number) => void
+  selectedSpells?: {
+    activeSpells: number[]
+    passiveSpells: number[]
+  }
 }
 
-function SelectedItem({ name, skills, hasPassive }: SelectedItemProps) {
+function SelectedItem({ name, onSpellSelect, selectedSpells = { activeSpells: [], passiveSpells: [] } }: SelectedItemProps) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [data, setData] = useState<ItemData | null>(null)
+
+  useEffect(() => {
+    async function fetchItemData() {
+      if (!name) {
+        setData(null)
+        return
+      }
+
+      setLoading(true)
+      setError(null)
+
+      try {
+        const response = await fetch(`/api/items/${name}/data`)
+        const data = await response.json()
+        
+        if ('error' in data) {
+          throw new Error(data.error)
+        }
+        
+        setData(data as ItemData)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch item data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchItemData()
+  }, [name])
+
+  const handleSpellClick = (type: 'active' | 'passive', slotIndex: number, spellIndex: number) => {
+    onSpellSelect?.(type, slotIndex, spellIndex)
+  }
+
   return (
     <div className="flex items-center gap-4">
       <div className="w-12 h-12 bg-[#161B22] rounded border border-zinc-800/50 flex-shrink-0">
@@ -308,17 +392,52 @@ function SelectedItem({ name, skills, hasPassive }: SelectedItemProps) {
           />
         )}
       </div>
-      <div className="flex items-center gap-2">
-        {Array.from({ length: skills }).map((_, index) => (
-          <div
-            key={index}
-            className="w-10 h-10 bg-[#161B22] rounded-full border border-zinc-800/50"
-          />
-        ))}
-        {hasPassive && (
-          <div className="w-10 h-10 bg-[#161B22] rounded-full border border-zinc-800/50" />
-        )}
-      </div>
+      
+      {loading ? (
+        <div className="text-sm text-zinc-500 animate-pulse">Loading slots...</div>
+      ) : error ? (
+        <div className="text-sm text-red-500">{error}</div>
+      ) : (
+        <div className="flex items-center gap-4">
+          {/* Active Spell Slots */}
+          {(data?.activeSpellSlots ?? 0) > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500 mr-1">Active</span>
+              <div className="flex gap-2">
+                {Array.from({ length: data?.activeSpellSlots ?? 0 }).map((_, slotIndex) => (
+                  <SpellSelectionPopover
+                    key={`active-${slotIndex}`}
+                    type="active"
+                    spells={data?.activeSlots?.[slotIndex + 1] || []}
+                    selectedIndex={selectedSpells.activeSpells[slotIndex] ?? -1}
+                    isSelected={selectedSpells.activeSpells[slotIndex] !== undefined}
+                    onSelect={(spellIndex) => handleSpellClick('active', slotIndex, spellIndex)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Passive Spell Slots */}
+          {(data?.passiveSpellSlots ?? 0) > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500 mr-1">Passive</span>
+              <div className="flex gap-2">
+                {Array.from({ length: data?.passiveSpellSlots ?? 0 }).map((_, slotIndex) => (
+                  <SpellSelectionPopover
+                    key={`passive-${slotIndex}`}
+                    type="passive"
+                    spells={data?.passiveSlots?.[slotIndex + 1] || []}
+                    selectedIndex={selectedSpells.passiveSpells[slotIndex] ?? -1}
+                    isSelected={selectedSpells.passiveSpells[slotIndex] !== undefined}
+                    onSelect={(spellIndex) => handleSpellClick('passive', slotIndex, spellIndex)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
