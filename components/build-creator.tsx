@@ -18,7 +18,8 @@ export default function BuildCreator({ initialBuilds, onBuildsChange, showDismis
       name: 'New Build',
       equipment: {},
       spells: {},
-      instructions: ''
+      instructions: '',
+      status: 'draft'
     }
   ])
 
@@ -35,16 +36,13 @@ export default function BuildCreator({ initialBuilds, onBuildsChange, showDismis
     onBuildsChange?.(newBuilds)
   }
 
-  const handleSave = () => {
-    console.log('Saving build:', builds[0])
-  }
-
-  const createNewBuild = () => {
-    const newBuild: Build = {
+  const createBuild = (status: BuildStatus) => {
+    const newBuild = {
       id: crypto.randomUUID(),
       name: '',
       equipment: {},
-      spells: {}
+      spells: {},
+      status
     }
     const newBuilds = [...builds, newBuild]
     setBuilds(newBuilds)
@@ -64,18 +62,20 @@ export default function BuildCreator({ initialBuilds, onBuildsChange, showDismis
         />
       ))}
       
-      <Button
-        onClick={handleSave}
-        className="w-full bg-[#00E6B4] text-black hover:bg-[#1BECA0] font-semibold"
-      >
-        Save Build
-      </Button>
-      <button
-        onClick={createNewBuild}
-        className="w-full p-2 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg text-zinc-400"
-      >
-        Add Build
-      </button>
+      <div className="flex gap-4">
+        <button
+          onClick={() => createBuild('draft')}
+          className="flex-1 p-2 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg text-zinc-400 transition-colors"
+        >
+          Save as Draft
+        </button>
+        <button
+          onClick={() => createBuild('published')}
+          className="flex-1 p-2 bg-[#00E6B4] hover:bg-[#1BECA0] rounded-lg text-black font-medium transition-colors"
+        >
+          Publish Build
+        </button>
+      </div>
     </div>
   )
 }

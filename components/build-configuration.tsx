@@ -36,6 +36,12 @@ const slotAssignments = [
 
 type ItemData = import('@/lib/types/composition').ItemData
 
+const buildStatusOptions = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'published', label: 'Published' },
+  { value: 'stale', label: 'Stale' }
+]
+
 export default function BuildConfiguration({
   build,
   buildIndex,
@@ -123,20 +129,55 @@ export default function BuildConfiguration({
     return false
   }
 
+  const updateBuildStatus = (status: string) => {
+    updateBuild({ ...build, status: status as BuildStatus })
+  }
+
   return (
     <div className="bg-[#0D1117] rounded-lg p-6 border border-zinc-800/50 hover:border-zinc-700/50 transition-colors">
       <div className="flex items-center justify-between mb-6">
-        <div className="flex-1">
-          <Label htmlFor={`build-name-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-400">
-            Build Name
-          </Label>
-          <Input
-            id={`build-name-${build.id}`}
-            value={build.name}
-            onChange={(e) => updateBuildName(e.target.value)}
-            className="bg-[#161B22] border-zinc-800/50 focus-visible:ring-zinc-700"
-            placeholder="Enter build name"
-          />
+        <div className="flex-1 space-y-4">
+          <div>
+            <Label htmlFor={`build-name-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-400">
+              Build Name
+            </Label>
+            <Input
+              id={`build-name-${build.id}`}
+              value={build.name}
+              onChange={(e) => updateBuildName(e.target.value)}
+              className="bg-[#161B22] border-zinc-800/50 focus-visible:ring-zinc-700"
+              placeholder="Enter build name"
+            />
+          </div>
+          <div>
+            <Label htmlFor={`build-status-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-400">
+              Status
+            </Label>
+            <Select value={build.status} onValueChange={updateBuildStatus}>
+              <SelectTrigger 
+                id={`build-status-${build.id}`}
+                className="w-full h-10 bg-[#161B22] border-zinc-800 text-zinc-300 hover:bg-[#1C2128] focus:ring-zinc-700"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1C2128] border-zinc-800">
+                {buildStatusOptions.map(option => (
+                  <SelectItem 
+                    key={option.value} 
+                    value={option.value}
+                    className={cn(
+                      "text-zinc-300 hover:bg-zinc-800 cursor-pointer",
+                      option.value === 'published' && "text-green-400",
+                      option.value === 'draft' && "text-yellow-400",
+                      option.value === 'stale' && "text-red-400"
+                    )}
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         {showDismissible && (
           <div className="flex items-center gap-4">

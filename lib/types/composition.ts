@@ -1,3 +1,5 @@
+export type BuildStatus = 'published' | 'draft' | 'stale'
+
 export interface Build {
   id: string
   name: string
@@ -6,6 +8,7 @@ export interface Build {
   difficulty?: string
   costTier?: string
   instructions?: string
+  status: BuildStatus
   equipment: {
     head?: string
     cape?: string
