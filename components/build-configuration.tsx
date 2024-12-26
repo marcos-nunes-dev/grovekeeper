@@ -74,36 +74,50 @@ export default function BuildConfiguration({
 
   const handleItemSelect = async (item: AlbionItem) => {
     if (selectedSlot) {
-      const updatedEquipment = { ...build.equipment }
-      updatedEquipment[selectedSlot as keyof typeof build.equipment] = item.id
-      
-      if (selectedSlot === 'mainHand') {
-        try {
-          const response = await fetch(`/api/items/${item.id}/data`)
-          const data = await response.json()
-          setIsTwoHanded(data.twoHanded)
-          
-          if (data.twoHanded) {
-            updatedEquipment.offHand = undefined
+      if (selectedSlot.startsWith('swap-')) {
+        const swapIndex = parseInt(selectedSlot.split('-')[1])
+        const updatedSwaps = [...(build.swaps || [])]
+        updatedSwaps[swapIndex] = {
+          ...updatedSwaps[swapIndex],
+          itemId: item.id,
+          spells: {
+            activeSpells: [],
+            passiveSpells: []
           }
-        } catch (error) {
-          console.error('Failed to check if weapon is two-handed:', error)
         }
-      }
-      
-      const updatedSpells = { ...build.spells }
-      if (!updatedSpells[item.id]) {
-        updatedSpells[item.id] = {
-          activeSpells: [],
-          passiveSpells: []
+        updateBuild({ ...build, swaps: updatedSwaps })
+      } else {
+        const updatedEquipment = { ...build.equipment }
+        updatedEquipment[selectedSlot as keyof typeof build.equipment] = item.id
+        
+        if (selectedSlot === 'mainHand') {
+          try {
+            const response = await fetch(`/api/items/${item.id}/data`)
+            const data = await response.json()
+            setIsTwoHanded(data.twoHanded)
+            
+            if (data.twoHanded) {
+              updatedEquipment.offHand = undefined
+            }
+          } catch (error) {
+            console.error('Failed to check if weapon is two-handed:', error)
+          }
         }
+        
+        const updatedSpells = { ...build.spells }
+        if (!updatedSpells[item.id]) {
+          updatedSpells[item.id] = {
+            activeSpells: [],
+            passiveSpells: []
+          }
+        }
+        
+        updateBuild({ 
+          ...build, 
+          equipment: updatedEquipment,
+          spells: updatedSpells
+        })
       }
-      
-      updateBuild({ 
-        ...build, 
-        equipment: updatedEquipment,
-        spells: updatedSpells
-      })
       setIsModalOpen(false)
     }
   }
@@ -384,6 +398,108 @@ export default function BuildConfiguration({
             placeholder="Enter instructions on how to play this build..."
             className="flex-1 w-full bg-[#161B22] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-zinc-300 placeholder-zinc-500 resize-none"
           />
+        </div>
+      </div>
+
+      <div className="w-full mt-6">
+        <div className="flex items-center justify-between mb-4">
+          <Label className="text-sm font-medium text-zinc-400">
+            Swaps
+          </Label>
+          <button
+            onClick={() => {
+              const newSwap: Swap = {
+                id: crypto.randomUUID(),
+                itemId: '',
+                description: '',
+                spells: {
+                  activeSpells: [],
+                  passiveSpells: []
+                }
+              }
+              updateBuild({
+                ...build,
+                swaps: [...(build.swaps || []), newSwap]
+              })
+            }}
+            className="text-xs px-2 py-1 bg-zinc-800/50 hover:bg-zinc-800 rounded text-zinc-400 transition-colors"
+          >
+            Add Swap
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {build.swaps?.map((swap, index) => (
+            <div 
+              key={swap.id} 
+              className="flex gap-4 p-4 bg-[#161B22] rounded-lg border border-zinc-800/50"
+            >
+              <div className="flex-shrink-0">
+                <div 
+                  onClick={() => {
+                    setSelectedSlot('swap-' + index)
+                    setIsModalOpen(true)
+                  }}
+                  className="w-12 h-12 bg-[#161B22] rounded border border-zinc-800/50 hover:bg-[#252D38] transition-colors cursor-pointer flex items-center justify-center"
+                >
+                  {swap.itemId ? (
+                    <Image
+                      src={`https://render.albiononline.com/v1/item/${swap.itemId}.png`}
+                      alt={swap.itemId}
+                      width={48}
+                      height={48}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-xs font-medium text-zinc-500">
+                      Select
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex-1">
+                <Textarea
+                  value={swap.description}
+                  onChange={(e) => {
+                    const updatedSwaps = [...(build.swaps || [])]
+                    updatedSwaps[index] = {
+                      ...swap,
+                      description: e.target.value
+                    }
+                    updateBuild({ ...build, swaps: updatedSwaps })
+                  }}
+                  placeholder="When to use this swap..."
+                  className="w-full bg-[#1C2128] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-zinc-300 placeholder-zinc-500 resize-none h-24"
+                />
+              </div>
+
+              {swap.itemId && (
+                <div className="flex-shrink-0">
+                  <SelectedItem
+                    name={swap.itemId}
+                    selectedSpells={swap.spells}
+                    onSpellSelect={(type, slotIndex, spellIndex) => {
+                      const updatedSwaps = [...(build.swaps || [])]
+                      const spellArray = updatedSwaps[index].spells[`${type}Spells`]
+                      spellArray[slotIndex] = spellIndex
+                      updateBuild({ ...build, swaps: updatedSwaps })
+                    }}
+                  />
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  const updatedSwaps = build.swaps?.filter((_, i) => i !== index)
+                  updateBuild({ ...build, swaps: updatedSwaps })
+                }}
+                className="text-zinc-400 hover:text-zinc-300 transition-colors self-start"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ))}
         </div>
       </div>
 

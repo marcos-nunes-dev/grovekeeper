@@ -26,6 +26,7 @@ export interface Build {
       passiveSpells: number[]
     }
   }
+  swaps: Swap[]
 }
 
 export interface ClassSection {
@@ -55,4 +56,14 @@ export interface ItemData {
     [key: number]: AlbionSpell[]
   }
   twoHanded: boolean
+}
+
+export interface Swap {
+  id: string
+  itemId: string
+  description: string
+  spells: {
+    activeSpells: number[]
+    passiveSpells: number[]
+  }
 } 
