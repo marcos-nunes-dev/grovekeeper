@@ -1,6 +1,4 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# Temporarily skip TypeScript checks
-# npx lint-staged
-git add .
+npx lint-staged
