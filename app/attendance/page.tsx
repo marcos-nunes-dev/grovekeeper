@@ -7,6 +7,13 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { HelpCircle, Search } from 'lucide-react'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -15,78 +22,53 @@ import {
 import AttendanceResult, { type AttendanceResult as AttendanceResultType } from '@/components/attendance-result'
 import PageHero from '@/components/page-hero'
 
+type BattleType = 'zvz' | 'all'
+
 export default function Attendance() {
   const [guildName, setGuildName] = useState('')
+  const [battleType, setBattleType] = useState<BattleType>('zvz')
   const [playerNames, setPlayerNames] = useState('')
   const [result, setResult] = useState<AttendanceResultType | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleCalculate = () => {
-    // Mock response with enhanced data
-    const mockResult: AttendanceResultType = {
-      players: [
-        {
-          rank: 1,
-          name: 'TopPlayer123',
-          mainClass: 'DPS',
-          tier: 'S',
-          totalKills: 250,
-          totalDeaths: 50,
-          avgIP: 1350,
-          totalAttendance: 95,
-          attendanceComparison: 25,
-          topWeapons: ['T8_MAIN_SPEAR', 'T8_2H_QUARTERSTAFF', 'T8_MAIN_SWORD'],
+  const handleCalculate = async () => {
+    if (!guildName || !playerNames) return;
+
+    // Parse player names from the textarea
+    const playerList = playerNames
+      .split('\n')
+      .map(line => {
+        const match = line.match(/"([^"]+)"/);
+        return match ? match[1] : null;
+      })
+      .filter(Boolean) as string[];
+
+    try {
+      setIsLoading(true)
+      
+      const response = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        {
-          rank: 2,
-          name: 'HealerPro',
-          mainClass: 'Healer',
-          tier: 'A',
-          totalKills: 50,
-          totalDeaths: 30,
-          avgIP: 1300,
-          totalAttendance: 90,
-          attendanceComparison: 15,
-          topWeapons: ['T8_2H_HOLYSTAFF', 'T8_2H_DIVINESTAFF'],
-        },
-        {
-          rank: 3,
-          name: 'TankMaster',
-          mainClass: 'Tank',
-          tier: 'A',
-          totalKills: 100,
-          totalDeaths: 80,
-          avgIP: 1400,
-          totalAttendance: 85,
-          attendanceComparison: 10,
-          topWeapons: ['T8_MAIN_MACE', 'T8_2H_POLEHAMMER'],
-        },
-        {
-          rank: 4,
-          name: 'SupportGuy',
-          mainClass: 'Support',
-          tier: 'B',
-          totalKills: 120,
-          totalDeaths: 90,
-          avgIP: 1250,
-          totalAttendance: 75,
-          attendanceComparison: -5,
-          topWeapons: ['T8_MAIN_ARCANESTAFF', 'T8_2H_ARCANESTAFF'],
-        },
-        {
-          rank: 5,
-          name: 'CasualPlayer',
-          mainClass: 'Utility',
-          tier: 'C',
-          totalKills: 80,
-          totalDeaths: 100,
-          avgIP: 1200,
-          totalAttendance: 60,
-          attendanceComparison: -15,
-          topWeapons: ['T8_2H_NATURESTAFF', 'T8_2H_WILDSTAFF'],
-        },
-      ]
+        body: JSON.stringify({
+          guildName,
+          playerList,
+          minGP: battleType === 'zvz' ? 20 : 10
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch attendance data')
+      }
+
+      const data = await response.json()
+      setResult({ players: data.players })
+    } catch (error) {
+      console.error('Error calculating attendance:', error)
+    } finally {
+      setIsLoading(false)
     }
-    setResult(mockResult)
   }
 
   return (
@@ -101,14 +83,28 @@ export default function Attendance() {
       >
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-zinc-800 p-6 space-y-4">
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Search className="w-5 h-5 text-zinc-400" />
-              <Input
-                value={guildName}
-                onChange={(e) => setGuildName(e.target.value)}
-                placeholder="Enter guild name"
-                className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
-              />
+            <div className="flex items-center gap-4">
+              <Select
+                value={battleType}
+                onValueChange={(value: BattleType) => setBattleType(value)}
+              >
+                <SelectTrigger className="w-[180px] border-0 bg-transparent">
+                  <SelectValue placeholder="Battle Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#161B22] border-zinc-800">
+                  <SelectItem value="zvz">Only ZvZ</SelectItem>
+                  <SelectItem value="all">ZvZ and Small</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="flex items-center gap-2 flex-1">
+                <Search className="w-5 h-5 text-zinc-400" />
+                <Input
+                  value={guildName}
+                  onChange={(e) => setGuildName(e.target.value)}
+                  placeholder="Enter guild name"
+                  className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
+                />
+              </div>
             </div>
             <div className="h-px bg-zinc-800" />
           </div>
@@ -140,8 +136,9 @@ export default function Attendance() {
           <Button 
             onClick={handleCalculate} 
             className="w-full bg-[#00E6B4] text-black hover:bg-[#1BECA0]"
+            disabled={isLoading}
           >
-            Calculate Attendance
+            {isLoading ? 'Calculating...' : 'Calculate Attendance'}
           </Button>
         </div>
       </PageHero>

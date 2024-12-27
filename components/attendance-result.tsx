@@ -97,7 +97,16 @@ export default function AttendanceResult({ result }: AttendanceResultProps) {
                     {player.rank}
                   </td>
                   <td className="py-3 px-4">
-                    <ClassIcon className="w-5 h-5 text-[#00E6B4]" />
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <ClassIcon className="w-5 h-5 text-[#00E6B4]" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{player.mainClass}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </td>
                   <td className="py-3 px-4 font-medium">{player.name}</td>
                   <td className="py-3 px-4">
