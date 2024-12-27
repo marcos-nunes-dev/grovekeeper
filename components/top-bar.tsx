@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import Search from '@/components/search'
+import { CommandMenu } from '@/components/command-menu'
 import { useSession, signIn, signOut } from 'next-auth/react'
 import {
   DropdownMenu,
@@ -40,7 +40,7 @@ export default function TopBar() {
         </Link>
         
         <div className="flex-1 w-full ml-8">
-          <Search />
+          <CommandMenu />
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
