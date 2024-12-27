@@ -10,6 +10,7 @@ import ItemSelectionModal from './item-selection-modal'
 import type { Build, Swap } from '@/lib/types/composition'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { SpellSelectionPopover } from './spell-selection-popover'
+import { CONTENT_TYPES, CLASSES } from '@/lib/constants'
 
 interface BuildConfigurationProps {
   build: Build
@@ -181,26 +182,24 @@ export default function BuildConfiguration({
 
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div>
-          <Label htmlFor={`build-role-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-400">
-            Role
+          <Label htmlFor={`build-class-${build.id}`} className="mb-2 block text-sm font-medium text-zinc-400">
+            Class
           </Label>
           <Select
-            value={build.role || ''}
-            onValueChange={(value) => updateBuild?.({ ...build, role: value })}
+            value={build.class || ''}
+            onValueChange={(value) => updateBuild?.({ ...build, class: value })}
             disabled={readOnly}
           >
             <SelectTrigger 
-              id={`build-role-${build.id}`} 
+              id={`build-class-${build.id}`} 
               className="w-full h-10 bg-[#161B22] border-zinc-800 text-zinc-300 hover:bg-[#1C2128] focus:ring-zinc-700"
             >
-              <SelectValue placeholder="Select role" />
+              <SelectValue placeholder="Select class" />
             </SelectTrigger>
             <SelectContent className="bg-[#1C2128] border-zinc-800">
-              <SelectItem value="Tank">Tank</SelectItem>
-              <SelectItem value="Healer">Healer</SelectItem>
-              <SelectItem value="RDPS">Ranged DPS</SelectItem>
-              <SelectItem value="MDPS">Melee DPS</SelectItem>
-              <SelectItem value="Support">Support</SelectItem>
+              {CLASSES.map((cls) => (
+                <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -221,14 +220,9 @@ export default function BuildConfiguration({
               <SelectValue placeholder="Select content" />
             </SelectTrigger>
             <SelectContent className="bg-[#1C2128] border-zinc-800">
-              <SelectItem value="ZvZ">ZvZ (Zerg vs Zerg)</SelectItem>
-              <SelectItem value="Crystal">Crystal League</SelectItem>
-              <SelectItem value="SmallScale">Small Scale PvP</SelectItem>
-              <SelectItem value="Ganking">Ganking</SelectItem>
-              <SelectItem value="PvE">PvE / Fame Farming</SelectItem>
-              <SelectItem value="HCE">HCE (Hardcore Expeditions)</SelectItem>
-              <SelectItem value="Corrupted">Corrupted Dungeons</SelectItem>
-              <SelectItem value="Arena">Arena / Circle of Strife</SelectItem>
+              {CONTENT_TYPES.map((type) => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

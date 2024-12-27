@@ -8,7 +8,7 @@ export default function CreateBuild() {
         {null}
       </PageHero>
       <div className="max-w-7xl mx-auto mb-10">
-        <BuildCreator showDismissible={false} />
+        <BuildCreator showDismissible={false} showSaveButtons={true} />
       </div>
     </div>
   )

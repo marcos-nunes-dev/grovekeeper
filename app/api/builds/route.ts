@@ -86,49 +86,34 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions) as Session
-  const { searchParams } = new URL(request.url)
-  const status = searchParams.get('status')
-  const query = searchParams.get('q')
-
   try {
+    const { searchParams } = new URL(request.url)
+    const search = searchParams.get('search')
+
     const builds = await prisma.build.findMany({
-      where: {
-        AND: [
-          // Show all statuses for user's builds, but only published for others
-          {
-            OR: [
-              {
-                author: {
-                  email: session?.user?.email
-                }
-              },
-              {
-                status: 'published'
-              }
-            ]
-          },
-          // Additional status filter if provided
-          status ? { status } : {},
-          // Search query if provided
-          query ? {
-            OR: [
-              { name: { contains: query, mode: 'insensitive' } },
-              { role: { contains: query, mode: 'insensitive' } },
-              { content: { contains: query, mode: 'insensitive' } },
-              { difficulty: { contains: query, mode: 'insensitive' } },
-              { costTier: { contains: query, mode: 'insensitive' } },
-              { instructions: { contains: query, mode: 'insensitive' } },
-            ]
-          } : {},
+      where: search ? {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { instructions: { contains: search, mode: 'insensitive' } }
         ]
-      },
+      } : undefined,
       include: {
         author: {
           select: {
             name: true,
             image: true,
             email: true
+          }
+        },
+        classSection: {
+          include: {
+            composition: {
+              select: {
+                id: true,
+                name: true,
+                contentType: true
+              }
+            }
           }
         }
       },
@@ -140,9 +125,6 @@ export async function GET(request: Request) {
     return NextResponse.json(builds)
   } catch (error) {
     console.error('Error fetching builds:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch builds' },
-      { status: 500 }
-    )
+    return new NextResponse('Internal Server Error', { status: 500 })
   }
 } 

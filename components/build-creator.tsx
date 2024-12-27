@@ -11,9 +11,10 @@ interface BuildCreatorProps {
   onBuildsChange?: (builds: Build[]) => void
   showDismissible?: boolean
   readOnly?: boolean
+  showSaveButtons?: boolean
 }
 
-export default function BuildCreator({ initialBuilds, onBuildsChange, showDismissible = false, readOnly = false }: BuildCreatorProps) {
+export default function BuildCreator({ initialBuilds, onBuildsChange, showDismissible = false, readOnly = false, showSaveButtons = false }: BuildCreatorProps) {
   const { data: session } = useSession()
   const router = useRouter()
   const [builds, setBuilds] = useState<Build[]>(initialBuilds || [
@@ -84,7 +85,7 @@ export default function BuildCreator({ initialBuilds, onBuildsChange, showDismis
         />
       ))}
       
-      {!readOnly && (
+      {!readOnly && showSaveButtons && (
         <div className="flex gap-4">
           <button
             onClick={() => saveBuild(builds[0], 'draft')}

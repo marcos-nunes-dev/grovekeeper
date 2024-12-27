@@ -66,17 +66,18 @@ model PlayerEvent {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?      @unique
   emailVerified DateTime?
   image         String?
-  discordId     String?   @unique
+  discordId     String?      @unique
   accounts      Account[]
   sessions      Session[]
   builds        Build[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  compositions  Composition[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model Account {
@@ -115,9 +116,9 @@ model VerificationToken {
 }
 
 model Build {
-  id           String      @id @default(cuid())
+  id           String       @id @default(cuid())
   name         String
-  role         String?
+  class        String?
   content      String?
   difficulty   String?
   costTier     String?
@@ -128,8 +129,38 @@ model Build {
   swaps        Json        // Store swaps as JSON
   authorId     String      // Foreign key to User
   author       User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  classSection ClassSection? @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  classSectionId String?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+
+  @@index([authorId])
+  @@index([classSectionId])
+}
+
+model ClassSection {
+  id            String   @id @default(cuid())
+  name          String
+  builds        Build[]
+  composition   Composition @relation(fields: [compositionId], references: [id], onDelete: Cascade)
+  compositionId String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([compositionId])
+}
+
+model Composition {
+  id            String   @id @default(cuid())
+  name          String
+  contentType   String?
+  description   String?
+  tags          String[] // Store tags as array
+  classSections ClassSection[]
+  authorId      String   // Foreign key to User
+  author        User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([authorId])
 }

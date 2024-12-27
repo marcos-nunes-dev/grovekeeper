@@ -1,8 +1,22 @@
-import { useEffect, DependencyList } from 'react'
+import { useEffect, useState } from 'react'
 
-export function useDebounce(fn: () => void, delay: number, deps: DependencyList) {
+export function useDebounce<T>(value: T, delay: number, immediate = false): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
   useEffect(() => {
-    const timeoutId = setTimeout(fn, delay)
-    return () => clearTimeout(timeoutId)
-  }, [...deps, fn, delay])
+    if (immediate) {
+      setDebouncedValue(value)
+      return
+    }
+
+    const timer = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [value, delay, immediate])
+
+  return debouncedValue
 } 

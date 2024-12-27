@@ -8,6 +8,7 @@ import { Analytics } from "@vercel/analytics/react"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import AuthProvider from '@/components/auth-provider'
 import { Toaster } from 'sonner'
+import { ToastProvider } from '@/components/providers/toast-provider'
 
 export const metadata = {
   title: 'Grovekeeper - Albion Online Composition Builder',
@@ -31,6 +32,7 @@ export default function RootLayout({
                 {children}
               </main>
               <Toaster />
+              <ToastProvider />
             </TooltipProvider>
           </AuthProvider>
         </Providers>

@@ -6,7 +6,7 @@ export const CLASSES = [
   'Battlemount',
 ] as const;
 
-export const PURPOSES = [
+export const CONTENT_TYPES = [
   'ZvZ',
   'Small Scale',
   'World Boss',

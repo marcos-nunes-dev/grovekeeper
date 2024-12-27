@@ -3,7 +3,7 @@ export type BuildStatus = 'published' | 'draft' | 'stale'
 export interface Build {
   id: string
   name: string
-  role?: string
+  class?: string
   content?: string
   difficulty?: string
   costTier?: string

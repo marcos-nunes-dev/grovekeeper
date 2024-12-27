@@ -17,6 +17,7 @@ interface ClassSectionProps {
   classSections: ClassSectionType[]
   setClassSections: (sections: ClassSectionType[]) => void
   children: React.ReactNode
+  readOnly?: boolean
 }
 
 export default function ClassSection({
@@ -27,13 +28,14 @@ export default function ClassSection({
   classSections,
   setClassSections,
   children,
+  readOnly = false
 }: ClassSectionProps) {
   const toggleClassExpansion = (className: string) => {
     setExpandedClass(expandedClass === className ? null : className)
   }
 
   return (
-    <div className="bg-[#0D1117] border border-zinc-800/50 rounded-lg overflow-hidden shadow-lg transition-all duration-200 hover:border-zinc-700/50">
+    <div className="bg-[#0D1117] border border-zinc-800/50 rounded-lg overflow-hidden transition-all duration-200 hover:border-zinc-700/50">
       <div
         className="p-4 flex items-center justify-between cursor-pointer hover:bg-[#161B22] transition-colors"
         onClick={() => toggleClassExpansion(classSection.name)}
@@ -46,29 +48,33 @@ export default function ClassSection({
               updatedSections[classIndex].name = value
               setClassSections(updatedSections)
             }}
+            disabled={readOnly}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger 
+              className="w-[180px] bg-[#161B22] border-zinc-800 text-zinc-300 hover:bg-[#1C2128] focus:ring-zinc-700"
+              onClick={(e) => e.stopPropagation()}
+            >
               <SelectValue placeholder="Select class" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-[#1C2128] border-zinc-800">
               {CLASSES.map((cls) => (
                 <SelectItem key={cls} value={cls}>{cls}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <span className="text-zinc-400 text-sm">
-            {classSection.builds.length} builds
+          <span className="text-zinc-400 text-sm font-medium">
+            {classSection.builds.length} {classSection.builds.length === 1 ? 'build' : 'builds'}
           </span>
         </div>
         {expandedClass === classSection.name ? (
-          <ChevronUp className="text-zinc-400" size={20} />
+          <ChevronUp className="text-zinc-400 hover:text-zinc-300" size={20} />
         ) : (
-          <ChevronDown className="text-zinc-400" size={20} />
+          <ChevronDown className="text-zinc-400 hover:text-zinc-300" size={20} />
         )}
       </div>
 
       {expandedClass === classSection.name && (
-        <div className="p-4 border-t border-zinc-800/50 bg-gradient-to-b from-[#161B22]/50">
+        <div className="p-6 border-t border-zinc-800/50 bg-gradient-to-b from-[#161B22]/50 to-transparent">
           {children}
         </div>
       )}

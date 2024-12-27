@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { PURPOSES } from '@/lib/constants'
+import { CONTENT_TYPES } from '@/lib/constants'
 
 const classFilters = [
   { icon: Sword, label: 'DPS' },
@@ -22,7 +22,7 @@ const classFilters = [
 
 export default function CompositionFilters() {
   const [selectedClasses, setSelectedClasses] = useState<string[]>([])
-  const [selectedPurpose, setSelectedPurpose] = useState<string>('all')
+  const [selectedContentType, setSelectedContentType] = useState<string>('all')
 
   const toggleClass = (label: string) => {
     setSelectedClasses(prev => 
@@ -52,15 +52,15 @@ export default function CompositionFilters() {
         ))}
       </div>
 
-      <Select value={selectedPurpose} onValueChange={setSelectedPurpose}>
+      <Select value={selectedContentType} onValueChange={setSelectedContentType}>
         <SelectTrigger className="w-[180px] h-[42px] bg-[#161B22] border-zinc-800">
-          <SelectValue placeholder="Filter by purpose" />
+          <SelectValue placeholder="Filter by content type" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All purposes</SelectItem>
-          {PURPOSES.map((purpose) => (
-            <SelectItem key={purpose} value={purpose}>
-              {purpose}
+          <SelectItem value="all">All content types</SelectItem>
+          {CONTENT_TYPES.map((type) => (
+            <SelectItem key={type} value={type}>
+              {type}
             </SelectItem>
           ))}
         </SelectContent>
