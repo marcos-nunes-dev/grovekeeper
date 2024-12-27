@@ -1,5 +1,6 @@
+import React from 'react'
 import { cn } from '@/lib/utils'
-import { Sword, Shield, Cross, Zap, Headphones } from 'lucide-react'
+import { Sword, Shield, Cross, Zap, Headphones, Swords, Heart, LucideIcon } from 'lucide-react'
 import {
   Tooltip,
   TooltipContent,
@@ -13,22 +14,29 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card"
+import { useMemo } from 'react'
 
 interface ComparisonData {
   current: {
     kd: number
     guildName: string
     guildSize: number
+    avgIP: number
+    performance: number
   }
   similar: {
     kd: number
     guildName: string
     guildSize: number
+    avgIP: number
+    performance: number
   } | null
   best: {
     kd: number
     guildName: string
     guildSize: number
+    avgIP: number
+    performance: number
   } | null
 }
 
@@ -44,6 +52,8 @@ interface PlayerAttendance {
   attendanceComparison: number
   topWeapons: string[]
   comparison?: ComparisonData | null
+  totalDamage: number
+  totalHealing: number
 }
 
 export interface AttendanceResult {
@@ -170,7 +180,202 @@ function TierBadge({ tier, attendanceComparison }: { tier: PlayerAttendance['tie
   )
 }
 
+function formatNumber(num: number): string {
+  if (num >= 1000000) {
+    return `${(num / 1000000).toFixed(1)}M`
+  }
+  if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)}K`
+  }
+  return num.toString()
+}
+
+function getRelevantStat(player: PlayerAttendance): { value: string; label: string; icon: LucideIcon } {
+  switch (player.mainClass) {
+    case 'DPS':
+    case 'Tank':
+      return { value: formatNumber(player.totalDamage), label: 'Damage', icon: Swords }
+    case 'Healer':
+      return { value: formatNumber(player.totalHealing), label: 'Healing', icon: Heart }
+    case 'Support':
+      return player.totalDamage > player.totalHealing 
+        ? { value: formatNumber(player.totalDamage), label: 'Damage', icon: Swords }
+        : { value: formatNumber(player.totalHealing), label: 'Healing', icon: Heart }
+    default:
+      return { value: '0', label: 'Damage', icon: Swords }
+  }
+}
+
+function IPComparison({ data, playerClass }: { data: ComparisonData, playerClass: PlayerAttendance['mainClass'] }) {
+  const chartData = [
+    ...(data.similar ? [{
+      name: 'Similar Guild',
+      ip: data.similar.avgIP,
+      guildName: data.similar.guildName,
+      guildSize: data.similar.guildSize
+    }] : []),
+    ...(data.best ? [{
+      name: 'Best Guild',
+      ip: data.best.avgIP,
+      guildName: data.best.guildName,
+      guildSize: data.best.guildSize
+    }] : [])
+  ]
+
+  const playerIP = data.current.avgIP
+  const similarIP = data.similar?.avgIP || 0
+  const bestIP = data.best?.avgIP || 0
+
+  // Calculate percentages compared to player's IP
+  const similarComparison = similarIP ? ((playerIP / similarIP) * 100 - 100) : null
+  const bestComparison = bestIP ? ((playerIP / bestIP) * 100 - 100) : null
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="space-y-2">
+        <h3 className="font-semibold">Average IP Comparison ({playerClass})</h3>
+        <p className="text-sm text-zinc-400">Your IP: {playerIP}</p>
+        {similarComparison !== null && (
+          <p className="text-sm text-zinc-400">
+            {similarComparison > 0 
+              ? <span className="text-green-400">+{similarComparison.toFixed(1)}%</span>
+              : <span className="text-red-400">{similarComparison.toFixed(1)}%</span>
+            } compared to similar guild
+          </p>
+        )}
+        {bestComparison !== null && (
+          <p className="text-sm text-zinc-400">
+            {bestComparison > 0 
+              ? <span className="text-green-400">+{bestComparison.toFixed(1)}%</span>
+              : <span className="text-red-400">{bestComparison.toFixed(1)}%</span>
+            } compared to best guild
+          </p>
+        )}
+      </div>
+      
+      <div className="h-[200px] w-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData}>
+            <XAxis dataKey="name" />
+            <YAxis domain={[0, 'auto']} />
+            <RechartsTooltip
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload
+                  return (
+                    <div className="bg-[#161B22] border border-zinc-800 rounded-lg p-2 text-sm">
+                      <p className="font-semibold">{data.guildName}</p>
+                      <p className="text-zinc-400">Guild Size: {data.guildSize}</p>
+                      <p className="text-zinc-400">IP: {data.ip}</p>
+                    </div>
+                  )
+                }
+                return null
+              }}
+            />
+            <Bar 
+              dataKey="ip" 
+              fill="#00E6B4" 
+              radius={[4, 4, 0, 0]}
+            >
+              <ReferenceLine y={playerIP} stroke="#ffffff" strokeDasharray="3 3" />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
+function PerformanceComparison({ data, playerClass }: { data: ComparisonData, playerClass: PlayerAttendance['mainClass'] }) {
+  const chartData = [
+    ...(data.similar ? [{
+      name: 'Similar Guild',
+      performance: data.similar.performance,
+      guildName: data.similar.guildName,
+      guildSize: data.similar.guildSize
+    }] : []),
+    ...(data.best ? [{
+      name: 'Best Guild',
+      performance: data.best.performance,
+      guildName: data.best.guildName,
+      guildSize: data.best.guildSize
+    }] : [])
+  ]
+
+  const playerPerformance = data.current.performance
+  const similarPerformance = data.similar?.performance || 0
+  const bestPerformance = data.best?.performance || 0
+
+  // Calculate percentages compared to player's performance
+  const similarComparison = similarPerformance ? ((playerPerformance / similarPerformance) * 100 - 100) : null
+  const bestComparison = bestPerformance ? ((playerPerformance / bestPerformance) * 100 - 100) : null
+
+  const label = playerClass === 'Healer' ? 'Healing' : 'Damage'
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="space-y-2">
+        <h3 className="font-semibold">{label} Comparison ({playerClass})</h3>
+        <p className="text-sm text-zinc-400">Your {label}: {formatNumber(playerPerformance)}</p>
+        {similarComparison !== null && (
+          <p className="text-sm text-zinc-400">
+            {similarComparison > 0 
+              ? <span className="text-green-400">+{similarComparison.toFixed(1)}%</span>
+              : <span className="text-red-400">{similarComparison.toFixed(1)}%</span>
+            } compared to similar guild
+          </p>
+        )}
+        {bestComparison !== null && (
+          <p className="text-sm text-zinc-400">
+            {bestComparison > 0 
+              ? <span className="text-green-400">+{bestComparison.toFixed(1)}%</span>
+              : <span className="text-red-400">{bestComparison.toFixed(1)}%</span>
+            } compared to best guild
+          </p>
+        )}
+      </div>
+      
+      <div className="h-[200px] w-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData}>
+            <XAxis dataKey="name" />
+            <YAxis domain={[0, 'auto']} />
+            <RechartsTooltip
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload
+                  return (
+                    <div className="bg-[#161B22] border border-zinc-800 rounded-lg p-2 text-sm">
+                      <p className="font-semibold">{data.guildName}</p>
+                      <p className="text-zinc-400">Guild Size: {data.guildSize}</p>
+                      <p className="text-zinc-400">{label}: {formatNumber(data.performance)}</p>
+                    </div>
+                  )
+                }
+                return null
+              }}
+            />
+            <Bar 
+              dataKey="performance" 
+              fill="#00E6B4" 
+              radius={[4, 4, 0, 0]}
+            >
+              <ReferenceLine y={playerPerformance} stroke="#ffffff" strokeDasharray="3 3" />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
 export default function AttendanceResult({ result }: AttendanceResultProps) {
+  // Memoize the sorted players array
+  const sortedPlayers = useMemo(() => {
+    return [...result.players].sort((a, b) => b.totalAttendance - a.totalAttendance)
+  }, [result.players])
+
   return (
     <div className="rounded-lg border border-zinc-800/50 overflow-hidden">
       <div className="overflow-x-auto">
@@ -184,12 +389,15 @@ export default function AttendanceResult({ result }: AttendanceResultProps) {
               <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">K/D</th>
               <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">Avg IP</th>
               <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">Attendance</th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">Performance</th>
               <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">Most Used</th>
             </tr>
           </thead>
           <tbody>
-            {result.players.map((player) => {
+            {sortedPlayers.map((player) => {
               const ClassIcon = classIcons[player.mainClass]
+              const relevantStat = getRelevantStat(player)
+              
               return (
                 <tr
                   key={player.name}
@@ -240,9 +448,42 @@ export default function AttendanceResult({ result }: AttendanceResultProps) {
                       </div>
                     )}
                   </td>
-                  <td className="py-3 px-4">{player.avgIP}</td>
+                  <td className="py-3 px-4">
+                    {player.comparison ? (
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <div className="cursor-help">{player.avgIP}</div>
+                        </HoverCardTrigger>
+                        <HoverCardContent side="right" className="w-[350px] p-0">
+                          <IPComparison data={player.comparison} playerClass={player.mainClass} />
+                        </HoverCardContent>
+                      </HoverCard>
+                    ) : (
+                      player.avgIP
+                    )}
+                  </td>
                   <td className="py-3 px-4">
                     {player.totalAttendance}
+                  </td>
+                  <td className="py-3 px-4">
+                    {player.comparison ? (
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <div className="flex items-center gap-2 text-[#00E6B4] cursor-help">
+                            <relevantStat.icon className="w-4 h-4" />
+                            <span>{relevantStat.value}</span>
+                          </div>
+                        </HoverCardTrigger>
+                        <HoverCardContent side="right" className="w-[350px] p-0">
+                          <PerformanceComparison data={player.comparison} playerClass={player.mainClass} />
+                        </HoverCardContent>
+                      </HoverCard>
+                    ) : (
+                      <div className="flex items-center gap-2 text-[#00E6B4]">
+                        <relevantStat.icon className="w-4 h-4" />
+                        <span>{relevantStat.value}</span>
+                      </div>
+                    )}
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-1">

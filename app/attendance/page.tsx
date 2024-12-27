@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, useTransition } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -73,6 +73,12 @@ export default function Attendance() {
   const [isSearching, setIsSearching] = useState(false)
   const [guildMembers, setGuildMembers] = useState<string[]>([])
   const debouncedGuildName = useDebounce(guildName, 300)
+  const [isPending, startTransition] = useTransition()
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const searchCache = useRef<Map<string, GuildSearchResult[]>>(new Map())
+  const retryTimeoutRef = useRef<NodeJS.Timeout>()
+  const retryCountRef = useRef(0)
+  const MAX_RETRIES = 3
 
   // Handle input change with immediate UI reset
   const handleGuildNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,43 +116,108 @@ export default function Attendance() {
     )
   }, [isLoading, isSearching, guildInfo, guildMembers.length, useCustomList, playerNames])
 
-  // Search for guild when name changes
+  const handleExactMatch = useCallback(async (guild: GuildSearchResult) => {
+    try {
+      const detailsResponse = await fetch(`/api/guilds/${guild.Id}/members`)
+      if (!detailsResponse.ok) {
+        throw new Error('Failed to fetch guild details')
+      }
+
+      const details = await detailsResponse.json()
+      
+      startTransition(() => {
+        setGuildInfo({
+          type: 'success',
+          Name: guild.Name,
+          AllianceName: guild.AllianceName,
+          statistics: details.statistics
+        })
+        setGuildMembers(details.members.map((m: { Name: string }) => m.Name))
+      })
+    } catch (error) {
+      console.error('Error fetching guild details:', error)
+      setGuildInfo({
+        type: 'error',
+        error: 'Failed to fetch guild details. Please try again.'
+      })
+    }
+  }, [])
+
   const searchGuild = useCallback(async (name: string) => {
     if (!name) return
 
+    // Check cache first
+    const cachedResult = searchCache.current.get(name.toLowerCase())
+    if (cachedResult) {
+      const exactMatch = cachedResult.find(g => g.Name.toLowerCase() === name.toLowerCase())
+      if (exactMatch) {
+        handleExactMatch(exactMatch)
+        return
+      }
+    }
+
     try {
       setIsSearching(true)
+      
+      // Cancel previous request if exists
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      abortControllerRef.current = new AbortController()
 
-      const response = await fetch(`/api/guilds/search?q=${encodeURIComponent(name)}`)
-      if (!response.ok) return
+      const response = await fetch(
+        `/api/guilds/search?q=${encodeURIComponent(name)}`,
+        { signal: abortControllerRef.current.signal }
+      )
+
+      if (!response.ok) {
+        if (response.status === 429) { // Rate limit
+          const retryAfter = response.headers.get('Retry-After') || '5'
+          if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current)
+          }
+          retryTimeoutRef.current = setTimeout(() => {
+            if (retryCountRef.current < MAX_RETRIES) {
+              retryCountRef.current++
+              searchGuild(name)
+            }
+          }, parseInt(retryAfter) * 1000)
+          return
+        }
+        throw new Error('Failed to search guild')
+      }
 
       const guilds: GuildSearchResult[] = await response.json()
+      
+      // Cache the results
+      searchCache.current.set(name.toLowerCase(), guilds)
+
       const exactMatch = guilds.find(g => g.Name.toLowerCase() === name.toLowerCase())
       
       if (exactMatch) {
-        const detailsResponse = await fetch(`/api/guilds/${exactMatch.Id}/members`)
-        if (detailsResponse.ok) {
-          const details = await detailsResponse.json()
-          setGuildInfo({
-            type: 'success',
-            Name: exactMatch.Name,
-            AllianceName: exactMatch.AllianceName,
-            statistics: details.statistics
-          })
-          setGuildMembers(details.members.map((m: { Name: string }) => m.Name))
-        }
+        await handleExactMatch(exactMatch)
       } else if (guilds.length > 0) {
         setGuildInfo({
           type: 'error',
           error: 'Multiple guilds found with similar names. Please use exact guild name.'
         })
       }
-    } catch (error) {
-      console.error('Error searching guild:', error)
+
+      // Reset retry count on success
+      retryCountRef.current = 0
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') return
+        console.error('Error searching guild:', error)
+        setGuildInfo({
+          type: 'error',
+          error: 'Failed to search guild. Please try again.'
+        })
+      }
     } finally {
       setIsSearching(false)
     }
-  }, [])
+  }, [handleExactMatch])
 
   // Effect to search guild when debounced name changes
   useEffect(() => {
@@ -154,6 +225,18 @@ export default function Attendance() {
       searchGuild(debouncedGuildName)
     }
   }, [debouncedGuildName, searchGuild])
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleCalculate = useCallback(async () => {
     if (!guildName) return
@@ -270,15 +353,18 @@ export default function Attendance() {
           <Button 
             onClick={handleCalculate} 
             className="w-full bg-[#00E6B4] text-black hover:bg-[#1BECA0] disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isCalculateDisabled}
+            disabled={isCalculateDisabled || isPending}
           >
-            {isLoading ? 'Calculating...' : isSearching ? 'Searching Guild...' : 'Calculate Attendance'}
+            {isLoading ? 'Calculating...' : 
+             isPending ? 'Loading Guild...' : 
+             isSearching ? 'Searching Guild...' : 
+             'Calculate Attendance'}
           </Button>
         </div>
       </PageHero>
 
       <div className="container mx-auto px-4">
-        <GuildInfo info={guildInfo} isLoading={isSearching} />
+        <GuildInfo info={guildInfo} isLoading={isSearching || isPending} />
         {result && <AttendanceResult result={result} />}
       </div>
     </div>
