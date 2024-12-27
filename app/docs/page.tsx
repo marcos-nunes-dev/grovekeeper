@@ -338,9 +338,11 @@ export default function DocsPage() {
                     <div className="flex items-center justify-between border-b border-zinc-800 pb-4 mb-6">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-zinc-800/50 rounded-lg flex items-center justify-center">
-                          <img 
+                          <Image 
                             src="https://render.albiononline.com/v1/item/T8_HEAD_CLOTH_SET3.png"
                             alt="Scholar Cowl"
+                            width={40}
+                            height={40}
                             className="w-10 h-10"
                           />
                         </div>
@@ -1037,7 +1039,7 @@ export default function DocsPage() {
                             <Info className="w-4 h-4 text-[#00E6B4]" />
                             <span className="text-sm">Data Range Indicator</span>
                           </div>
-                          <p className="text-xs text-zinc-400">Shows the time range of the displayed data (e.g., "Last 30 days")</p>
+                          <p className="text-xs text-zinc-400">Shows the time range of the displayed data (e.g., &ldquo;Last 30 days&rdquo;)</p>
                         </div>
 
                         <h5 className="text-lg font-medium">Fame Distribution</h5>

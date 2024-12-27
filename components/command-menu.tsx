@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Calculator, Search, Users, FileSpreadsheet, Command, BookOpen, ArrowRight, User } from 'lucide-react'
+import { Calculator, Search, Users, Command, BookOpen, ArrowRight, User } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import {
   CommandDialog,
@@ -15,7 +15,7 @@ import {
   CommandShortcut,
 } from '@/components/ui/command'
 
-type ShortcutKey = 'k' | 'a' | 'r' | 'b' | '/'
+type ShortcutKey = 'k' | 'a' | 'r' | 'b' | '/' | 'p'
 
 export function CommandMenu() {
   const router = useRouter()
@@ -26,7 +26,8 @@ export function CommandMenu() {
       k: () => setOpen((open) => !open),
       a: () => router.push('/attendance'),
       r: () => router.push('/regear-calculator'),
-      b: () => router.push('/profile'),
+      b: () => router.push('/builds'),
+      p: () => router.push('/profile'),
       '/': () => router.push('/docs'),
     }
 
@@ -115,7 +116,7 @@ export function CommandMenu() {
               </div>
             </CommandItem>
             <CommandItem
-              onSelect={() => runCommand(() => router.push('/builds'))}
+              onSelect={() => runCommand(() => router.push('/profile'))}
               className="group"
             >
               <div className="flex items-center gap-3 flex-1">
@@ -128,7 +129,7 @@ export function CommandMenu() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <CommandShortcut>⌘B</CommandShortcut>
+                <CommandShortcut>⌘P</CommandShortcut>
                 <ArrowRight className="w-4 h-4 text-zinc-400 group-aria-selected:text-[#00E6B4]" />
               </div>
             </CommandItem>

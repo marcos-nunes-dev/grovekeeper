@@ -9,6 +9,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useDebounce } from '@/lib/hooks/use-debounce'
 import type { Build } from '@/lib/types/composition'
+import Image from 'next/image'
 
 type CompositionWithAuthor = {
   id: string
@@ -77,10 +78,12 @@ function CompositionCard({ composition }: { composition: CompositionWithAuthor }
           <div className="flex items-center gap-2 text-sm">
             <div className="flex items-center gap-2">
               {composition.author?.image ? (
-                <img 
+                <Image 
                   src={composition.author.image} 
                   alt={composition.author.name || 'Author'} 
-                  className="w-6 h-6 rounded-full"
+                  width={24}
+                  height={24}
+                  className="rounded-full"
                 />
               ) : (
                 <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center">
