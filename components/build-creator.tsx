@@ -10,15 +10,9 @@ interface BuildCreatorProps {
   initialBuilds?: Build[]
   onBuildsChange?: (builds: Build[]) => void
   showDismissible?: boolean
-  readOnly?: boolean
 }
 
-export default function BuildCreator({ 
-  initialBuilds, 
-  onBuildsChange, 
-  showDismissible = false,
-  readOnly = false 
-}: BuildCreatorProps) {
+export default function BuildCreator({ initialBuilds, onBuildsChange, showDismissible = false }: BuildCreatorProps) {
   const { data: session } = useSession()
   const router = useRouter()
   const [builds, setBuilds] = useState<Build[]>(initialBuilds || [
@@ -34,7 +28,6 @@ export default function BuildCreator({
   ])
 
   const updateBuild = (index: number, updatedBuild: Build) => {
-    if (readOnly) return
     const newBuilds = [...builds]
     newBuilds[index] = updatedBuild
     setBuilds(newBuilds)
@@ -42,14 +35,12 @@ export default function BuildCreator({
   }
 
   const removeBuild = (index: number) => {
-    if (readOnly) return
     const newBuilds = builds.filter((_, i) => i !== index)
     setBuilds(newBuilds)
     onBuildsChange?.(newBuilds)
   }
 
   const saveBuild = async (build: Build, status: 'draft' | 'published') => {
-    if (readOnly) return
     if (!session) {
       router.push('/auth/signin')
       return
@@ -88,26 +79,23 @@ export default function BuildCreator({
           updateBuild={(updatedBuild) => updateBuild(index, updatedBuild)}
           removeBuild={showDismissible ? () => removeBuild(index) : undefined}
           showDismissible={showDismissible}
-          readOnly={readOnly}
         />
       ))}
       
-      {!readOnly && (
-        <div className="flex gap-4">
-          <button
-            onClick={() => saveBuild(builds[0], 'draft')}
-            className="flex-1 p-2 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg text-zinc-400 transition-colors"
-          >
-            Save as Draft
-          </button>
-          <button
-            onClick={() => saveBuild(builds[0], 'published')}
-            className="flex-1 p-2 bg-[#00E6B4] hover:bg-[#1BECA0] rounded-lg text-black font-medium transition-colors"
-          >
-            Publish Build
-          </button>
-        </div>
-      )}
+      <div className="flex gap-4">
+        <button
+          onClick={() => saveBuild(builds[0], 'draft')}
+          className="flex-1 p-2 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg text-zinc-400 transition-colors"
+        >
+          Save as Draft
+        </button>
+        <button
+          onClick={() => saveBuild(builds[0], 'published')}
+          className="flex-1 p-2 bg-[#00E6B4] hover:bg-[#1BECA0] rounded-lg text-black font-medium transition-colors"
+        >
+          Publish Build
+        </button>
+      </div>
     </div>
   )
 }

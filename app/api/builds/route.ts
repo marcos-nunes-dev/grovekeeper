@@ -23,6 +23,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    // If build has an ID, update instead of create
+    if (buildData.id && buildData.id !== 'initial-build') {
+      // Check if user owns the build
+      const existingBuild = await prisma.build.findUnique({
+        where: { id: buildData.id },
+        include: { author: true }
+      })
+
+      if (!existingBuild || existingBuild.author.email !== session.user.email) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      const updatedBuild = await prisma.build.update({
+        where: { id: buildData.id },
+        data: {
+          name: buildData.name,
+          role: buildData.role,
+          content: buildData.content,
+          difficulty: buildData.difficulty,
+          costTier: buildData.costTier,
+          instructions: buildData.instructions,
+          status: buildData.status,
+          equipment: buildData.equipment,
+          spells: buildData.spells,
+          swaps: buildData.swaps || []
+        }
+      })
+
+      return NextResponse.json(updatedBuild)
+    }
+
+    // Create new build if no ID or initial-build ID
     const build = await prisma.build.create({
       data: {
         name: buildData.name,
@@ -41,9 +73,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(build)
   } catch (error) {
-    console.error('Error creating build:', error)
+    console.error('Error creating/updating build:', error)
     return NextResponse.json(
-      { error: 'Failed to create build' },
+      { error: 'Failed to create/update build' },
       { status: 500 }
     )
   }
@@ -53,6 +85,7 @@ export async function GET(request: Request) {
   const session = await getServerSession(authOptions) as Session
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status')
+  const query = searchParams.get('q')
 
   try {
     const builds = await prisma.build.findMany({
@@ -62,10 +95,29 @@ export async function GET(request: Request) {
             email: session.user.email
           }
         } : {}),
-        ...(status ? { status } : {})
+        ...(status ? { status } : {}),
+        ...(query ? {
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            { role: { contains: query, mode: 'insensitive' } },
+            { content: { contains: query, mode: 'insensitive' } },
+            { difficulty: { contains: query, mode: 'insensitive' } },
+            { costTier: { contains: query, mode: 'insensitive' } },
+            { instructions: { contains: query, mode: 'insensitive' } },
+          ]
+        } : {})
+      },
+      include: {
+        author: {
+          select: {
+            name: true,
+            image: true,
+            email: true
+          }
+        }
       },
       orderBy: {
-        createdAt: 'desc'
+        updatedAt: 'desc'
       }
     })
 

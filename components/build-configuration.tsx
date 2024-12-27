@@ -17,7 +17,6 @@ interface BuildConfigurationProps {
   updateBuild: (updatedBuild: Build) => void
   removeBuild?: () => void
   showDismissible?: boolean
-  readOnly?: boolean
 }
 
 const slotAssignments = [
@@ -43,7 +42,6 @@ export default function BuildConfiguration({
   updateBuild,
   removeBuild,
   showDismissible = false,
-  readOnly = false
 }: BuildConfigurationProps) {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -56,17 +54,14 @@ export default function BuildConfiguration({
   }, [build, updateBuild])
 
   const updateBuildName = (newName: string) => {
-    if (readOnly) return
     updateBuild({ ...build, name: newName })
   }
 
   const updateInstructions = (newInstructions: string) => {
-    if (readOnly) return
     updateBuild({ ...build, instructions: newInstructions })
   }
 
   const handleTileClick = (slot: string) => {
-    if (readOnly) return
     setSelectedSlot(slot)
     setIsModalOpen(true)
   }
@@ -156,11 +151,10 @@ export default function BuildConfiguration({
               onChange={(e) => updateBuildName(e.target.value)}
               className="bg-[#161B22] border-zinc-800/50 focus-visible:ring-zinc-700"
               placeholder="Enter build name"
-              readOnly={readOnly}
             />
           </div>
         </div>
-        {!readOnly && showDismissible && (
+        {showDismissible && (
           <div className="flex items-center gap-4">
             <span className="text-xs text-zinc-500 px-2 py-1 bg-[#161B22] rounded-md">
               Build {buildIndex + 1}
@@ -175,7 +169,7 @@ export default function BuildConfiguration({
             )}
           </div>
         )}
-        {!readOnly && removeBuild && (
+        {!showDismissible && removeBuild && (
           <button
             onClick={removeBuild}
             className="text-zinc-400 hover:text-zinc-300 transition-colors"
@@ -192,8 +186,7 @@ export default function BuildConfiguration({
           </Label>
           <Select
             value={build.role || ''}
-            onValueChange={(value) => !readOnly && updateBuild({ ...build, role: value })}
-            disabled={readOnly}
+            onValueChange={(value) => updateBuild({ ...build, role: value })}
           >
             <SelectTrigger 
               id={`build-role-${build.id}`} 
@@ -217,8 +210,7 @@ export default function BuildConfiguration({
           </Label>
           <Select
             value={build.content || ''}
-            onValueChange={(value) => !readOnly && updateBuild({ ...build, content: value })}
-            disabled={readOnly}
+            onValueChange={(value) => updateBuild({ ...build, content: value })}
           >
             <SelectTrigger 
               id={`build-content-${build.id}`} 
@@ -245,8 +237,7 @@ export default function BuildConfiguration({
           </Label>
           <Select
             value={build.difficulty || ''}
-            onValueChange={(value) => !readOnly && updateBuild({ ...build, difficulty: value })}
-            disabled={readOnly}
+            onValueChange={(value) => updateBuild({ ...build, difficulty: value })}
           >
             <SelectTrigger 
               id={`build-difficulty-${build.id}`} 
@@ -269,8 +260,7 @@ export default function BuildConfiguration({
           </Label>
           <Select
             value={build.costTier || ''}
-            onValueChange={(value) => !readOnly && updateBuild({ ...build, costTier: value })}
-            disabled={readOnly}
+            onValueChange={(value) => updateBuild({ ...build, costTier: value })}
           >
             <SelectTrigger 
               id={`build-cost-${build.id}`} 
@@ -368,7 +358,6 @@ export default function BuildConfiguration({
             onChange={(e) => updateInstructions(e.target.value)}
             placeholder="Enter instructions on how to play this build..."
             className="flex-1 w-full bg-[#161B22] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-zinc-300 placeholder-zinc-500 resize-none"
-            readOnly={readOnly}
           />
         </div>
       </div>

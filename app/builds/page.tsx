@@ -1,9 +1,15 @@
-import BuildFilters from '@/components/build-filters'
+'use client'
+
+import { useState, useEffect } from 'react'
 import PageHero from '@/components/page-hero'
-import { getServerSession } from 'next-auth'
-import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
+import Image from 'next/image'
 import type { Build as CompositionBuild } from '@/lib/types/composition'
+import { Input } from '@/components/ui/input'
+import { Search } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useDebounce } from '@/lib/hooks/use-debounce'
+import { useSession } from 'next-auth/react'
 
 type BuildWithTimestamps = CompositionBuild & {
   createdAt: Date
@@ -11,6 +17,7 @@ type BuildWithTimestamps = CompositionBuild & {
   author?: {
     name: string | null
     image: string | null
+    email: string | null
   }
 }
 
@@ -40,10 +47,12 @@ function BuildCard({ build, isUserBuild = false }: { build: BuildWithTimestamps;
           <div className="flex items-center gap-2 text-sm">
             <div className="flex items-center gap-2">
               {build.author?.image ? (
-                <img 
+                <Image 
                   src={build.author.image} 
                   alt={build.author.name || 'Author'} 
-                  className="w-6 h-6 rounded-full"
+                  width={24}
+                  height={24}
+                  className="rounded-full"
                 />
               ) : (
                 <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center">
@@ -63,7 +72,7 @@ function BuildCard({ build, isUserBuild = false }: { build: BuildWithTimestamps;
         </div>
         {mainWeapon && (
           <div className="relative">
-            <img
+            <Image
               src={`https://render.albiononline.com/v1/item/${mainWeapon}.png`}
               alt="Main weapon"
               width={48}
@@ -92,7 +101,7 @@ function BuildCard({ build, isUserBuild = false }: { build: BuildWithTimestamps;
           <div className="flex -space-x-2">
             {armor.map((item, index) => item && (
               <div key={index} className="w-8 h-8 rounded-full bg-zinc-800/50 border border-zinc-800 relative">
-                <img
+                <Image
                   src={`https://render.albiononline.com/v1/item/${item}.png`}
                   alt={`Armor piece ${index + 1}`}
                   width={32}
@@ -119,52 +128,73 @@ function BuildCard({ build, isUserBuild = false }: { build: BuildWithTimestamps;
   )
 }
 
-export default async function Builds() {
-  const session = await getServerSession()
-  let userBuilds: BuildWithTimestamps[] = []
-
-  if (session?.user?.email) {
-    userBuilds = await prisma.build.findMany({
-      where: {
-        author: {
-          email: session.user.email
-        }
-      },
-      include: {
-        author: {
-          select: {
-            name: true,
-            image: true
-          }
-        }
-      },
-      orderBy: {
-        updatedAt: 'desc'
-      }
-    }) as BuildWithTimestamps[]
-  }
-
-  const publicBuilds = await prisma.build.findMany({
-    where: {
-      status: 'published',
-      NOT: {
-        author: {
-          email: session?.user?.email
-        }
-      }
-    },
-    include: {
-      author: {
-        select: {
-          name: true,
-          image: true
-        }
-      }
-    },
-    orderBy: {
-      updatedAt: 'desc'
+function SearchInput() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [value, setValue] = useState(searchParams.get('q') || '')
+  
+  useDebounce(() => {
+    const params = new URLSearchParams(searchParams)
+    if (value) {
+      params.set('q', value)
+    } else {
+      params.delete('q')
     }
-  }) as BuildWithTimestamps[]
+    router.push(`/builds?${params.toString()}`)
+  }, 300, [value])
+
+  return (
+    <div className="relative max-w-xl mx-auto">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+        <Input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-full pl-10 h-12  border-0 focus-visible:ring-[#00E6B4] text-zinc-300 placeholder:text-zinc-500"
+          placeholder="Search builds by name, role, content type..."
+        />
+      </div>
+    </div>
+  )
+}
+
+export default function Builds() {
+  const { data: session } = useSession()
+  const searchParams = useSearchParams()
+  const [userBuilds, setUserBuilds] = useState<BuildWithTimestamps[]>([])
+  const [publicBuilds, setPublicBuilds] = useState<BuildWithTimestamps[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchBuilds() {
+      setLoading(true)
+      try {
+        const params = new URLSearchParams(searchParams)
+        const response = await fetch(`/api/builds?${params.toString()}`)
+        const data = await response.json()
+
+        if (session?.user?.email) {
+          setUserBuilds(data.filter((build: BuildWithTimestamps) => 
+            build.author?.email === session.user.email
+          ))
+          setPublicBuilds(data.filter((build: BuildWithTimestamps) => 
+            build.author?.email !== session.user.email && build.status === 'published'
+          ))
+        } else {
+          setUserBuilds([])
+          setPublicBuilds(data.filter((build: BuildWithTimestamps) => 
+            build.status === 'published'
+          ))
+        }
+      } catch (error) {
+        console.error('Error fetching builds:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchBuilds()
+  }, [searchParams, session])
 
   return (
     <div>
@@ -177,38 +207,50 @@ export default async function Builds() {
         ]}
       >
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-zinc-800 p-6">
-          <BuildFilters />
+          <SearchInput />
         </div>
       </PageHero>
 
       <div className="container mx-auto px-4 space-y-8">
-        {userBuilds.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-zinc-200">Your Builds</h2>
-              <Link 
-                href="/builds/create" 
-                className="px-4 py-2 bg-[#00E6B4] hover:bg-[#1BECA0] text-black font-medium rounded-lg transition-colors"
-              >
-                Create Build
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {userBuilds.map((build) => (
-                <BuildCard key={build.id} build={build} isUserBuild />
-              ))}
-            </div>
-          </div>
-        )}
+        {loading ? (
+          <div className="text-center text-zinc-500">Loading builds...</div>
+        ) : (
+          <>
+            {userBuilds.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-zinc-200">Your Builds</h2>
+                  <Link 
+                    href="/builds/create" 
+                    className="px-4 py-2 bg-[#00E6B4] hover:bg-[#1BECA0] text-black font-medium rounded-lg transition-colors"
+                  >
+                    Create Build
+                  </Link>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {userBuilds.map((build) => (
+                    <BuildCard key={build.id} build={build} isUserBuild />
+                  ))}
+                </div>
+              </div>
+            )}
 
-        <div>
-          <h2 className="text-xl font-semibold text-zinc-200 mb-4">Community Builds</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {publicBuilds.map((build) => (
-              <BuildCard key={build.id} build={build} />
-            ))}
-          </div>
-        </div>
+            <div>
+              <h2 className="text-xl font-semibold text-zinc-200 mb-4">Community Builds</h2>
+              {publicBuilds.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {publicBuilds.map((build) => (
+                    <BuildCard key={build.id} build={build} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-zinc-500 py-8">
+                  No builds found. Try adjusting your search.
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
