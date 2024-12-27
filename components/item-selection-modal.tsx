@@ -93,6 +93,24 @@ const tierOptions: TierOption[] = [
   { value: 'T8_3', label: 'Tier 8.3', color: 'bg-white', tier: 8, enchantment: 3 },
 ]
 
+// Add fuzzy search function
+function fuzzyMatch(str: string, pattern: string): boolean {
+  pattern = pattern.toLowerCase()
+  str = str.toLowerCase()
+  
+  let patternIdx = 0
+  let strIdx = 0
+  
+  while (patternIdx < pattern.length && strIdx < str.length) {
+    if (pattern[patternIdx] === str[strIdx]) {
+      patternIdx++
+    }
+    strIdx++
+  }
+  
+  return patternIdx === pattern.length
+}
+
 export default function ItemSelectionModal({
   isOpen,
   onClose,
@@ -122,15 +140,15 @@ export default function ItemSelectionModal({
     const filtered = debouncedTerm.trim() === '' ? 
       // When no search term, show only base items (no enchantments)
       validItems
-        .filter(item => !item.UniqueName.includes('@')) // Filter out enchanted items
+        .filter(item => !item.UniqueName.includes('@'))
         .sort((a, b) => a.LocalizedNames['EN-US'].localeCompare(b.LocalizedNames['EN-US']))
-        .slice(0, 15) // Limit to 15 items
+        .slice(0, 15)
       : 
-      // When searching, show all items that match the search term and filters
+      // When searching, use fuzzy search
       validItems.filter((item) => {
         const matchesSearch = 
-          item.LocalizedNames['EN-US'].toLowerCase().includes(debouncedTerm.toLowerCase()) ||
-          item.UniqueName.toLowerCase().includes(debouncedTerm.toLowerCase())
+          fuzzyMatch(item.LocalizedNames['EN-US'], debouncedTerm) ||
+          fuzzyMatch(item.UniqueName, debouncedTerm)
 
         if (!matchesSearch) return false
 
@@ -149,24 +167,33 @@ export default function ItemSelectionModal({
         return true
       })
 
-    // Sort filtered items
+    // Sort filtered items with fuzzy match score
     return filtered.sort((a, b) => {
+      // First sort by exact match
+      const aExactMatch = a.LocalizedNames['EN-US'].toLowerCase().includes(debouncedTerm.toLowerCase())
+      const bExactMatch = b.LocalizedNames['EN-US'].toLowerCase().includes(debouncedTerm.toLowerCase())
+      if (aExactMatch && !bExactMatch) return -1
+      if (!aExactMatch && bExactMatch) return 1
+
+      // Then sort by tier
       const tierA = getTierFromUniqueName(a.UniqueName)
       const tierB = getTierFromUniqueName(b.UniqueName)
       if (tierA !== tierB) {
         return tierA - tierB
       }
+
       // Group same base items together
       const baseA = getBaseItemType(a.UniqueName)
       const baseB = getBaseItemType(b.UniqueName)
       if (baseA !== baseB) {
         return a.LocalizedNames['EN-US'].localeCompare(b.LocalizedNames['EN-US'])
       }
+
       // Sort enchanted items after base items
       const enchantA = a.UniqueName.match(/@(\d+)$/)?.[1] || '0'
       const enchantB = b.UniqueName.match(/@(\d+)$/)?.[1] || '0'
       return parseInt(enchantA) - parseInt(enchantB)
-    })
+    }).slice(0, 30) // Limit results to 30 items
   }, [validItems, debouncedTerm, selectedTierOption])
 
   const slotDisplayName = selectedSlot ? 

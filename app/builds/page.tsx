@@ -100,13 +100,13 @@ function BuildCard({ build, isUserBuild = false }: { build: BuildWithTimestamps;
         <div className="flex items-center justify-between">
           <div className="flex -space-x-2">
             {armor.map((item, index) => item && (
-              <div key={index} className="w-8 h-8 rounded-full bg-zinc-800/50 border border-zinc-800 relative">
+              <div key={index} className="w-8 h-8 bg-zinc-800/50 border border-zinc-800 relative">
                 <Image
                   src={`https://render.albiononline.com/v1/item/${item}.png`}
                   alt={`Armor piece ${index + 1}`}
                   width={32}
                   height={32}
-                  className="rounded-full"
+                  className="w-full h-full object-contain"
                 />
               </div>
             ))}
