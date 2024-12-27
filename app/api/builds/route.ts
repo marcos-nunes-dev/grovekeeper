@@ -90,22 +90,34 @@ export async function GET(request: Request) {
   try {
     const builds = await prisma.build.findMany({
       where: {
-        ...(session?.user?.email ? {
-          author: {
-            email: session.user.email
-          }
-        } : {}),
-        ...(status ? { status } : {}),
-        ...(query ? {
-          OR: [
-            { name: { contains: query, mode: 'insensitive' } },
-            { role: { contains: query, mode: 'insensitive' } },
-            { content: { contains: query, mode: 'insensitive' } },
-            { difficulty: { contains: query, mode: 'insensitive' } },
-            { costTier: { contains: query, mode: 'insensitive' } },
-            { instructions: { contains: query, mode: 'insensitive' } },
-          ]
-        } : {})
+        AND: [
+          // Show all statuses for user's builds, but only published for others
+          {
+            OR: [
+              {
+                author: {
+                  email: session?.user?.email
+                }
+              },
+              {
+                status: 'published'
+              }
+            ]
+          },
+          // Additional status filter if provided
+          status ? { status } : {},
+          // Search query if provided
+          query ? {
+            OR: [
+              { name: { contains: query, mode: 'insensitive' } },
+              { role: { contains: query, mode: 'insensitive' } },
+              { content: { contains: query, mode: 'insensitive' } },
+              { difficulty: { contains: query, mode: 'insensitive' } },
+              { costTier: { contains: query, mode: 'insensitive' } },
+              { instructions: { contains: query, mode: 'insensitive' } },
+            ]
+          } : {},
+        ]
       },
       include: {
         author: {

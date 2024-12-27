@@ -14,9 +14,10 @@ import { SpellSelectionPopover } from './spell-selection-popover'
 interface BuildConfigurationProps {
   build: Build
   buildIndex: number
-  updateBuild: (updatedBuild: Build) => void
+  updateBuild?: (updatedBuild: Build) => void
   removeBuild?: () => void
   showDismissible?: boolean
+  readOnly?: boolean
 }
 
 const slotAssignments = [
@@ -42,6 +43,7 @@ export default function BuildConfiguration({
   updateBuild,
   removeBuild,
   showDismissible = false,
+  readOnly = false
 }: BuildConfigurationProps) {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -54,14 +56,15 @@ export default function BuildConfiguration({
   }, [build, updateBuild])
 
   const updateBuildName = (newName: string) => {
-    updateBuild({ ...build, name: newName })
+    updateBuild?.({ ...build, name: newName })
   }
 
   const updateInstructions = (newInstructions: string) => {
-    updateBuild({ ...build, instructions: newInstructions })
+    updateBuild?.({ ...build, instructions: newInstructions })
   }
 
   const handleTileClick = (slot: string) => {
+    if (readOnly) return
     setSelectedSlot(slot)
     setIsModalOpen(true)
   }
@@ -79,7 +82,7 @@ export default function BuildConfiguration({
             passiveSpells: []
           }
         }
-        updateBuild({ ...build, swaps: updatedSwaps })
+        updateBuild?.({ ...build, swaps: updatedSwaps })
       } else {
         const updatedEquipment = { ...build.equipment }
         updatedEquipment[selectedSlot as keyof typeof build.equipment] = item.id
@@ -106,7 +109,7 @@ export default function BuildConfiguration({
           }
         }
         
-        updateBuild({ 
+        updateBuild?.({ 
           ...build, 
           equipment: updatedEquipment,
           spells: updatedSpells
@@ -126,7 +129,7 @@ export default function BuildConfiguration({
     const spellArray = updatedSpells[itemId][`${type}Spells`]
     spellArray[slotIndex] = spellIndex
     
-    updateBuild({ ...build, spells: updatedSpells })
+    updateBuild?.({ ...build, spells: updatedSpells })
   }
 
   const isSlotDisabled = (slot: string) => {
@@ -148,13 +151,14 @@ export default function BuildConfiguration({
             <Input
               id={`build-name-${build.id}`}
               value={build.name}
-              onChange={(e) => updateBuildName(e.target.value)}
+              onChange={(e) => updateBuild?.({ ...build, name: e.target.value })}
               className="bg-[#161B22] border-zinc-800/50 focus-visible:ring-zinc-700"
               placeholder="Enter build name"
+              readOnly={readOnly}
             />
           </div>
         </div>
-        {showDismissible && (
+        {showDismissible && removeBuild && !readOnly && (
           <div className="flex items-center gap-4">
             <span className="text-xs text-zinc-500 px-2 py-1 bg-[#161B22] rounded-md">
               Build {buildIndex + 1}
@@ -186,7 +190,8 @@ export default function BuildConfiguration({
           </Label>
           <Select
             value={build.role || ''}
-            onValueChange={(value) => updateBuild({ ...build, role: value })}
+            onValueChange={(value) => updateBuild?.({ ...build, role: value })}
+            disabled={readOnly}
           >
             <SelectTrigger 
               id={`build-role-${build.id}`} 
@@ -210,7 +215,8 @@ export default function BuildConfiguration({
           </Label>
           <Select
             value={build.content || ''}
-            onValueChange={(value) => updateBuild({ ...build, content: value })}
+            onValueChange={(value) => updateBuild?.({ ...build, content: value })}
+            disabled={readOnly}
           >
             <SelectTrigger 
               id={`build-content-${build.id}`} 
@@ -237,7 +243,8 @@ export default function BuildConfiguration({
           </Label>
           <Select
             value={build.difficulty || ''}
-            onValueChange={(value) => updateBuild({ ...build, difficulty: value })}
+            onValueChange={(value) => updateBuild?.({ ...build, difficulty: value })}
+            disabled={readOnly}
           >
             <SelectTrigger 
               id={`build-difficulty-${build.id}`} 
@@ -260,7 +267,8 @@ export default function BuildConfiguration({
           </Label>
           <Select
             value={build.costTier || ''}
-            onValueChange={(value) => updateBuild({ ...build, costTier: value })}
+            onValueChange={(value) => updateBuild?.({ ...build, costTier: value })}
+            disabled={readOnly}
           >
             <SelectTrigger 
               id={`build-cost-${build.id}`} 
@@ -363,31 +371,33 @@ export default function BuildConfiguration({
       </div>
 
       <div className="w-full mt-6">
-        <div className="flex items-center justify-between mb-4">
-          <Label className="text-sm font-medium text-zinc-400">
-            Swaps
-          </Label>
-          <button
-            onClick={() => {
-              const newSwap: Swap = {
-                id: crypto.randomUUID(),
-                itemId: '',
-                description: '',
-                spells: {
-                  activeSpells: [],
-                  passiveSpells: []
+        {!readOnly && (
+          <div className="flex items-center justify-between mb-4">
+            <Label className="text-sm font-medium text-zinc-400">
+              Swaps
+            </Label>
+            <button
+              onClick={() => {
+                const newSwap: Swap = {
+                  id: crypto.randomUUID(),
+                  itemId: '',
+                  description: '',
+                  spells: {
+                    activeSpells: [],
+                    passiveSpells: []
+                  }
                 }
-              }
-              updateBuild({
-                ...build,
-                swaps: [...(build.swaps || []), newSwap]
-              })
-            }}
-            className="text-xs px-2 py-1 bg-zinc-800/50 hover:bg-zinc-800 rounded text-zinc-400 transition-colors"
-          >
-            Add Swap
-          </button>
-        </div>
+                updateBuild?.({
+                  ...build,
+                  swaps: [...(build.swaps || []), newSwap]
+                })
+              }}
+              className="text-xs px-2 py-1 bg-zinc-800/50 hover:bg-zinc-800 rounded text-zinc-400 transition-colors"
+            >
+              Add Swap
+            </button>
+          </div>
+        )}
 
         <div className="space-y-4">
           {build.swaps?.map((swap, index) => (
@@ -428,7 +438,7 @@ export default function BuildConfiguration({
                       ...swap,
                       description: e.target.value
                     }
-                    updateBuild({ ...build, swaps: updatedSwaps })
+                    updateBuild?.({ ...build, swaps: updatedSwaps })
                   }}
                   placeholder="When to use this swap..."
                   className="w-full bg-[#1C2128] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-zinc-300 placeholder-zinc-500 resize-none h-24"
@@ -444,7 +454,7 @@ export default function BuildConfiguration({
                       const updatedSwaps = [...(build.swaps || [])]
                       const spellArray = updatedSwaps[index].spells[`${type}Spells`]
                       spellArray[slotIndex] = spellIndex
-                      updateBuild({ ...build, swaps: updatedSwaps })
+                      updateBuild?.({ ...build, swaps: updatedSwaps })
                     }}
                   />
                 </div>
@@ -453,7 +463,7 @@ export default function BuildConfiguration({
               <button
                 onClick={() => {
                   const updatedSwaps = build.swaps?.filter((_, i) => i !== index)
-                  updateBuild({ ...build, swaps: updatedSwaps })
+                  updateBuild?.({ ...build, swaps: updatedSwaps })
                 }}
                 className="text-zinc-400 hover:text-zinc-300 transition-colors self-start"
               >
