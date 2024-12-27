@@ -109,9 +109,42 @@ async function getCachedPlayer(playerName: string) {
   }
 }
 
+async function updateGlobalStats(data: AlbionPlayerResponse) {
+  try {
+    await prisma.grovekeeperStatistics.upsert({
+      where: { id: 'singleton' },
+      create: {
+        id: 'singleton',
+        playersTracked: BigInt(1),
+        totalPvpFame: BigInt(Math.floor(data.KillFame)),
+        totalPveFame: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
+      },
+      update: {
+        playersTracked: {
+          increment: 1
+        },
+        totalPvpFame: {
+          increment: BigInt(Math.floor(data.KillFame))
+        },
+        totalPveFame: {
+          increment: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0))
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Failed to update global stats:", error);
+  }
+}
+
 async function updatePlayerCache(data: AlbionPlayerResponse) {
   try {
-    await prisma.playerCache.upsert({
+    const existingPlayer = await prisma.playerCache.findUnique({
+      where: {
+        playerName: data.Name.toLowerCase(),
+      },
+    });
+
+    const result = await prisma.playerCache.upsert({
       where: {
         playerName: data.Name.toLowerCase(),
       },
@@ -137,6 +170,12 @@ async function updatePlayerCache(data: AlbionPlayerResponse) {
         updatedAt: new Date(),
       },
     });
+
+    // If this is a new player, update global stats
+    if (!existingPlayer) {
+      await updateGlobalStats(data);
+    }
+
     return true;
   } catch (error) {
     console.error("Failed to update player cache:", error);
