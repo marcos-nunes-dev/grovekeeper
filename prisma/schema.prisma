@@ -164,3 +164,64 @@ model Composition {
 
   @@index([authorId])
 }
+
+model GuildStatistics {
+  id                    Int      @id @default(autoincrement())
+  guildName            String
+  month                DateTime
+  minGP                Int
+  guildSize            Int      @default(0)
+  killFame             Float    @default(0)
+  deathFame            Float    @default(0)
+  averageAttendance    Float    @default(0)
+
+  // Kill/Death ratios by class
+  dpsKillDeathRatio    Float    @default(0)
+  tankKillDeathRatio   Float    @default(0)
+  healerKillDeathRatio Float    @default(0)
+  supportKillDeathRatio Float    @default(0)
+  utilityKillDeathRatio Float    @default(0)
+
+  // Average IP by class
+  dpsAverageIP         Float    @default(0)
+  tankAverageIP        Float    @default(0)
+  healerAverageIP      Float    @default(0)
+  supportAverageIP     Float    @default(0)
+  utilityAverageIP     Float    @default(0)
+
+  // Kill Contribution by class
+  dpsKillContribution  Float    @default(0)
+  tankKillContribution Float    @default(0)
+  healerKillContribution Float    @default(0)
+  supportKillContribution Float    @default(0)
+  utilityKillContribution Float    @default(0)
+
+  // Total Damage by class
+  dpsTotalDamage       Float    @default(0)
+  tankTotalDamage      Float    @default(0)
+  healerTotalDamage    Float    @default(0)
+  supportTotalDamage   Float    @default(0)
+  utilityTotalDamage   Float    @default(0)
+
+  // Total Healing by class
+  dpsTotalHealing      Float    @default(0)
+  tankTotalHealing     Float    @default(0)
+  healerTotalHealing   Float    @default(0)
+  supportTotalHealing  Float    @default(0)
+  utilityTotalHealing  Float    @default(0)
+
+  // Total Fame by class
+  dpsTotalFame         Float    @default(0)
+  tankTotalFame        Float    @default(0)
+  healerTotalFame      Float    @default(0)
+  supportTotalFame     Float    @default(0)
+  utilityTotalFame     Float    @default(0)
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([guildName, month, minGP], name: "guildName_month_minGP")
+  @@index([guildName])
+  @@index([month])
+  @@index([minGP])
+}
