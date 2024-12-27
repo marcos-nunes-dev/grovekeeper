@@ -4,7 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { ArrowRight, Calculator, Users, UserCircle, AlertCircle, Linkedin, Heart, Search, Clock, Swords, Skull, Shield, ExternalLink } from 'lucide-react'
+import { ArrowRight, Calculator, Users, UserCircle, AlertCircle, Heart, Search, Clock, Swords, Skull, Shield, ExternalLink } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Input } from "@/components/ui/input"
 import { formatTimeAgo, formatFame } from '@/lib/utils/format'
@@ -83,7 +83,7 @@ export default function Home() {
                 transition={{ delay: 0.5 }}
               >
                 <Button asChild size="lg" className="bg-[#00A884] text-black hover:bg-[#1B9E7A]">
-                  <Link href="/builds">
+                  <Link href="/profile">
                     Get Started
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
@@ -392,43 +392,15 @@ export default function Home() {
                 Join thousands of players who are already using Grovekeeper to enhance their Albion Online experience.
               </p>
               <Button asChild size="lg" className="bg-[#00A884] text-black hover:bg-[#1B9E7A]">
-                <Link href="/builds">
-                  Get Started
+                <Link href="/regear-calculator">
+                  Calculate Regear
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
             </motion.div>
           </div>
         </section>
-      </div>
-
-      {/* Footer */}
-      <footer className="py-8 px-4 border-t border-[#00A884]/10 bg-[#0A0E14]">
-        <div className="container mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Heart className="h-5 w-5 text-[#00A884]" />
-              <p className="text-sm text-zinc-400">
-                Made with love by Marcos Nunes
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <a
-                href="https://www.linkedin.com/in/marcos-renato-nunes/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-zinc-400 hover:text-[#00A884] transition-colors"
-              >
-                <Linkedin className="h-5 w-5" />
-                <span className="sr-only">LinkedIn</span>
-              </a>
-              <span className="text-sm text-zinc-400">
-                Discord: marcosnunes_
-              </span>
-            </div>
-          </div>
-        </div>
-      </footer>
+      </div>      
     </div>
   )
 }

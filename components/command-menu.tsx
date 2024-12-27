@@ -4,16 +4,8 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { Calculator, Search, Users, Command, BookOpen, ArrowRight, User } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-  CommandShortcut,
-} from '@/components/ui/command'
+import { CommandDialog, CommandGroup, CommandItem, CommandEmpty, CommandInput, CommandList, CommandShortcut, CommandSeparator } from './ui/command'
+
 
 type ShortcutKey = 'k' | 'a' | 'r' | 'b' | '/' | 'p'
 
