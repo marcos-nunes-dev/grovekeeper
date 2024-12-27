@@ -146,9 +146,17 @@ export async function GET(
           data: { hasDeepSearch: true }
         })
       } else {
-        await prisma.playerCache.create({
-          data: {
-            playerName: playerName.toLowerCase(),
+        await prisma.playerCache.upsert({
+          where: { playerName },
+          update: {
+            hasDeepSearch: true,
+            killFame: BigInt(0),
+            deathFame: BigInt(0),
+            pveTotal: BigInt(0)
+          },
+          create: {
+            id: crypto.randomUUID(),
+            playerName,
             hasDeepSearch: true,
             killFame: BigInt(0),
             deathFame: BigInt(0),
@@ -174,25 +182,29 @@ export async function GET(
 
     // Regular flow for non-deep searches
     // Check existing history first
-    const existingHistory = await prisma.guildHistory.findMany({
-      where: { playerName: playerName.toLowerCase() },
-      orderBy: { eventDate: 'desc' },
-      distinct: ['guildName'],
+    const guildHistory = await prisma.guildHistory.findMany({
+      where: { playerName },
+      orderBy: { createdAt: 'desc' },
       select: {
+        id: true,
+        createdAt: true,
+        updatedAt: true,
+        playerName: true,
         guildName: true,
-        eventDate: true
+        firstSeen: true,
+        lastSeen: true
       }
     })
 
     // If we have existing data
-    if (existingHistory.length > 0) {
-      const formattedHistory = existingHistory.map(entry => ({
+    if (guildHistory.length > 0) {
+      const formattedHistory = guildHistory.map(entry => ({
         name: entry.guildName,
-        seenAt: entry.eventDate.toLocaleDateString()
+        seenAt: entry.createdAt.toLocaleDateString()
       }))
 
       // If current guild matches the most recent one, skip background update
-      if (currentGuild && existingHistory[0].guildName === currentGuild) {
+      if (currentGuild && guildHistory[0].guildName === currentGuild) {
         return NextResponse.json({
           data: formattedHistory,
           cacheStatus: {
@@ -204,7 +216,7 @@ export async function GET(
       }
 
       // Start background update
-      fetchAndUpdateHistory(playerName, existingHistory[0].guildName)
+      fetchAndUpdateHistory(playerName, guildHistory[0].guildName)
         .then(async (newEntries) => {
           if (newEntries && newEntries.length > 0) {
             // Send updated data via SSE

@@ -35,28 +35,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
-      const updatedBuild = await prisma.build.update({
-        where: { id: buildData.id },
-        data: {
-          name: buildData.name,
-          role: buildData.role,
-          content: buildData.content,
-          difficulty: buildData.difficulty,
-          costTier: buildData.costTier,
-          instructions: buildData.instructions,
-          status: buildData.status,
-          equipment: buildData.equipment,
-          spells: buildData.spells,
-          swaps: buildData.swaps || []
-        }
-      })
-
-      return NextResponse.json(updatedBuild)
-    }
-
-    // Create new build if no ID or initial-build ID
-    const build = await prisma.build.create({
-      data: {
+      const buildUpdateData = {
         name: buildData.name,
         role: buildData.role,
         content: buildData.content,
@@ -66,9 +45,34 @@ export async function POST(request: Request) {
         status: buildData.status,
         equipment: buildData.equipment,
         spells: buildData.spells,
-        swaps: buildData.swaps || [],
-        authorId: user.id
+        swaps: JSON.parse(JSON.stringify(buildData.swaps || []))
       }
+
+      const updatedBuild = await prisma.build.update({
+        where: { id: buildData.id },
+        data: buildUpdateData
+      })
+
+      return NextResponse.json(updatedBuild)
+    }
+
+    // Create new build if no ID or initial-build ID
+    const buildDataForDb = {
+      name: buildData.name,
+      role: buildData.role,
+      content: buildData.content,
+      difficulty: buildData.difficulty,
+      costTier: buildData.costTier,
+      instructions: buildData.instructions,
+      status: buildData.status,
+      equipment: buildData.equipment,
+      spells: buildData.spells,
+      swaps: JSON.parse(JSON.stringify(buildData.swaps || [])),
+      authorId: user.id
+    }
+
+    const build = await prisma.build.create({
+      data: buildDataForDb
     })
 
     return NextResponse.json(build)

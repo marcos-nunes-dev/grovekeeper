@@ -18,10 +18,12 @@ import { useEventSource } from '@/lib/hooks/useEventSource'
 import { MurderLedgerEvent } from '@/types/albion'
 import { useProfileStats } from '@/lib/hooks/useProfileStats'
 import { AnimatedCounter } from '@/components/ui/animated-counter'
+import type { ApiResponse } from '@/lib/types/api'
+import { isErrorResponse } from '@/lib/types/api'
 
 interface EventsResponse {
-  data: MurderLedgerEvent[]
-  isCheckingNewEvents: boolean
+  data: MurderLedgerEvent[];
+  isCheckingNewEvents: boolean;
 }
 
 declare global {
@@ -54,23 +56,6 @@ interface CacheStatus {
   isUpdating: boolean
 }
 
-interface SuccessResponse {
-  data: PlayerData | PlayerWithEvents
-  cacheStatus: CacheStatus
-  isCheckingNewEvents?: boolean
-}
-
-interface ErrorResponse {
-  error: string
-  details?: string
-}
-
-type ApiResponse = SuccessResponse | ErrorResponse
-
-function isErrorResponse(response: ApiResponse): response is ErrorResponse {
-  return 'error' in response
-}
-
 interface PlayerWithEvents extends PlayerData {
   events?: MurderLedgerEvent[]
 }
@@ -87,51 +72,34 @@ export default function Profile() {
   const [isCheckingNewEvents, setIsCheckingNewEvents] = useState(false)
 
   // Add profile stats
-  const { data: stats, isLoading: isLoadingStats } = useProfileStats()
+  const { data: stats } = useProfileStats()
 
   // Use our custom hook for EventSource
-  useEventSource<ApiResponse>(
-    selectedPlayer ? `/api/player/${encodeURIComponent(selectedPlayer.name)}/updates?region=${region}` : null,
+  useEventSource(
+    selectedPlayer ? `/api/player/${encodeURIComponent(selectedPlayer.name)}/updates` : null,
     (update) => {
-      if ('error' in update) {
-        setCacheStatus({ isStale: true, isUpdating: false })
-      } else {
-        // Preserve all existing player data and only update the fields from the update
+      const response = JSON.parse(update.data) as ApiResponse;
+      if (!isErrorResponse(response)) {
         setSelectedPlayer(prev => prev ? {
           ...prev,
-          ...update.data,
-        } : update.data)
-        setCacheStatus(update.cacheStatus)
-      }
-    },
-    {
-      retryOnError: true,
-      maxRetries: 3,
-      onError: () => {
-        setCacheStatus(prev => ({ ...prev, isUpdating: false, isStale: true }))
+          ...response.data
+        } : null);
+        setCacheStatus(response.cacheStatus);
+        setIsCheckingNewEvents(Boolean(response.isCheckingNewEvents));
       }
     }
-  )
+  );
 
   // Separate event source for events updates
-  useEventSource<EventsResponse>(
-    selectedPlayer && isCheckingNewEvents ? 
-      `/api/player/${encodeURIComponent(selectedPlayer.name)}/events/updates?region=${region}` : null,
+  useEventSource(
+    selectedPlayer ? `/api/player/${encodeURIComponent(selectedPlayer.name)}/events/updates` : null,
     (update) => {
-      if ('data' in update) {
-        setSelectedPlayer(prev => prev ? {
-          ...prev,
-          events: update.data
-        } : null);
-      }
-      setIsCheckingNewEvents(update.isCheckingNewEvents || false);
-    },
-    {
-      retryOnError: true,
-      maxRetries: 3,
-      onError: () => {
-        setIsCheckingNewEvents(false);
-      }
+      const response = JSON.parse(update.data) as EventsResponse;
+      setSelectedPlayer(prev => prev ? {
+        ...prev,
+        events: response.data
+      } : null);
+      setIsCheckingNewEvents(Boolean(response.isCheckingNewEvents));
     }
   );
 
@@ -296,8 +264,7 @@ export default function Profile() {
             playerData={selectedPlayer} 
             events={selectedPlayer.events || []}
             isCheckingNewEvents={isCheckingNewEvents}
-            region={region}
-            shareUrl={`${window.location.origin}/profile?name=${encodeURIComponent(playerName)}&region=${region}`}
+            shareUrl={`${window.location.origin}/profile?name=${encodeURIComponent(selectedPlayer.name)}&region=${region}`}
             cacheStatus={cacheStatus}
           />
         )}

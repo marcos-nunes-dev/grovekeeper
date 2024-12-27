@@ -43,17 +43,21 @@ function getItemType(uniqueName: string): string {
   return uniqueName.split('_').slice(1).join('_')
 }
 
-function isValidItem(item: any): item is ItemNameData {
-  return (
-    item &&
-    typeof item === 'object' &&
-    'UniqueName' in item &&
-    'LocalizedNames' in item &&
-    item.LocalizedNames &&
-    typeof item.LocalizedNames === 'object' &&
-    'EN-US' in item.LocalizedNames &&
-    typeof item.LocalizedNames['EN-US'] === 'string'
-  )
+function isValidItem(item: unknown): item is ItemNameData {
+  if (!item || typeof item !== 'object') return false;
+  
+  const itemObj = item as { 
+    UniqueName?: unknown; 
+    LocalizedNames?: { 
+      'EN-US'?: unknown;
+    };
+  };
+
+  if (!itemObj.UniqueName || typeof itemObj.UniqueName !== 'string') return false;
+  if (!itemObj.LocalizedNames || typeof itemObj.LocalizedNames !== 'object') return false;
+  if (!itemObj.LocalizedNames['EN-US'] || typeof itemObj.LocalizedNames['EN-US'] !== 'string') return false;
+
+  return true;
 }
 
 function getBaseItemType(uniqueName: string): string {
@@ -132,8 +136,8 @@ export default function ItemSelectionModal({
 
   // Get valid items once
   const validItems = useMemo(() => {
-    return (itemNames as any[]).filter(isValidItem)
-  }, [])
+    return (itemNames as ItemNameData[]).filter(isValidItem);
+  }, []);
 
   // Filter and sort items based on debounced search term and filters
   const filteredAndSortedItems = useMemo(() => {

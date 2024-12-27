@@ -1,8 +1,24 @@
 import { NextResponse } from 'next/server'
+import type { PlayerData } from '@/types/albion'
 
-const clients = new Map<string, Set<(data: any) => void>>()
+interface UpdateResponse {
+  data: PlayerData
+  cacheStatus: {
+    isStale: boolean
+    isUpdating: boolean
+  }
+}
 
-export function sendUpdate(playerName: string, data: any) {
+interface ErrorResponse {
+  error: string
+  details?: string
+}
+
+type SSEResponse = UpdateResponse | ErrorResponse
+
+const clients = new Map<string, Set<(data: SSEResponse) => void>>()
+
+export function sendUpdate(playerName: string, data: SSEResponse) {
   const key = playerName.toLowerCase()
   const handlers = clients.get(key)
   if (handlers) {
@@ -15,8 +31,8 @@ export async function GET(
   { params }: { params: { name: string } }
 ) {
   const playerName = params.name.toLowerCase()
-
-  // Set up SSE headers
+  
+  // Set up SSE
   const stream = new TransformStream()
   const writer = stream.writable.getWriter()
   const encoder = new TextEncoder()
@@ -27,7 +43,7 @@ export async function GET(
   }
 
   const handlers = clients.get(playerName)!
-  const handler = (data: any) => {
+  const handler = (data: SSEResponse) => {
     const message = `data: ${JSON.stringify(data)}\n\n`
     writer.write(encoder.encode(message)).catch(console.error)
   }

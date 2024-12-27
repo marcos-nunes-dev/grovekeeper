@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendUpdate } from "./updates/route";
 
+const ALBION_API = "https://gameinfo.albiononline.com/api/gameinfo";
+
 interface AlbionSearchResponse {
   players: Array<{
     Id: string;
@@ -31,8 +33,6 @@ interface AlbionPlayerResponse {
     };
   };
 }
-
-const ALBION_API = "https://gameinfo.albiononline.com/api/gameinfo";
 
 async function findPlayer(playerName: string): Promise<string> {
   // Always search in Albion API first to get the latest player ID
@@ -154,8 +154,21 @@ async function fetchFreshData(playerName: string, region: string) {
 
 type FreshDataResult = {
   playerData: AlbionPlayerResponse;
-  formattedData: ReturnType<typeof formatPlayerData>;
-};
+  formattedData: {
+    id: string;
+    name: string;
+    guildName: string;
+    allianceName: string;
+    allianceTag: string;
+    avatar: string;
+    killFame: number;
+    deathFame: number;
+    pveTotal: number;
+    gatheringTotal: number;
+    craftingTotal: number;
+    region: string;
+  };
+}
 
 export async function GET(
   request: Request,

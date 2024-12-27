@@ -1,6 +1,6 @@
-import { memo, useState, useEffect } from 'react';
+import { memo, useState } from 'react';
 import { Card } from "@/components/ui/card";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import { Users, Filter } from 'lucide-react';
 import {
   DropdownMenu,
@@ -14,13 +14,6 @@ import PlayerInfo from './player-info';
 import RecentActivities from './recent-activities';
 import GuildHistory from './guild-history';
 import { formatFame } from '@/lib/utils/format';
-import { useProfileStats } from '@/lib/hooks/useProfileStats';
-import { AnimatedCounter } from '@/components/ui/animated-counter';
-
-interface FameDataPoint {
-  date: string;
-  fame: number;
-}
 
 interface DailyStats {
   kills: number;
@@ -64,7 +57,7 @@ const ZvZTooltip = ({
         {data.battles && data.battles.length > 0 && (
           <div className="space-y-1 border-t border-zinc-800/50 pt-2">
             <div className="text-xs text-zinc-400 mb-1">Battles:</div>
-            {data.battles.map((battle: { id: number, time: number }, index: number) => (
+            {data.battles.map((battle: { id: number, time: number }) => (
               <a
                 key={battle.id}
                 href={`https://albiononline.com/en/killboard/battles/${battle.id}`}
@@ -93,13 +86,7 @@ const PlayerProfile = memo(({
   const [copied, setCopied] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreEvents, setHasMoreEvents] = useState(true);
-  const [fameData, setFameData] = useState<FameDataPoint[]>([]);
-  const [isLoadingFame, setIsLoadingFame] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '14d' | '30d' | 'all'>('7d');
   const [selectedZvZPeriod, setSelectedZvZPeriod] = useState<'7d' | '14d' | '30d' | 'all'>('7d');
-
-  // Add profile stats
-  const { data: stats, isLoading: isLoadingStats } = useProfileStats();
 
   // Calculate ZvZ stats from events with daily breakdown
   const calculateZvZStats = () => {
@@ -210,28 +197,6 @@ const PlayerProfile = memo(({
       dailyData
     };
   };
-
-  useEffect(() => {
-    const fetchFameProgression = async () => {
-      if (!playerData?.name) return;
-      
-      try {
-        setIsLoadingFame(true);
-        const response = await fetch(`/api/player/${encodeURIComponent(playerData.name)}/fame-progression?period=${selectedPeriod}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch fame progression');
-        }
-        const data = await response.json();
-        setFameData(data);
-      } catch (error) {
-        console.error('Failed to fetch fame progression:', error);
-      } finally {
-        setIsLoadingFame(false);
-      }
-    };
-
-    fetchFameProgression();
-  }, [playerData?.name, selectedPeriod]);
 
   const handleShare = async () => {
     try {
@@ -405,7 +370,7 @@ const PlayerProfile = memo(({
                         tickLine={false}
                         fontSize={12}
                       />
-                      <Tooltip content={<ZvZTooltip />} />
+                      <RechartsTooltip content={<ZvZTooltip />} />
                       <Bar 
                         dataKey="kills" 
                         fill="#00E6B4"
@@ -438,6 +403,8 @@ const PlayerProfile = memo(({
     </div>
   );
 });
+
+PlayerProfile.displayName = 'PlayerProfile';
 
 export default PlayerProfile;
 

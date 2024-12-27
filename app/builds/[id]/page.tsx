@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import BuildCreator from '@/components/build-creator'
 import type { Build } from '@/lib/types/composition'
 import { getServerSession } from 'next-auth'
+import Image from "next/image";
 
 export default async function ViewBuild({ params }: { params: { id: string } }) {
   const session = await getServerSession()
@@ -33,10 +34,12 @@ export default async function ViewBuild({ params }: { params: { id: string } }) 
         <h1 className="text-2xl font-semibold text-zinc-200">{build.name}</h1>
         {build.author.image && (
           <div className="flex items-center gap-2">
-            <img 
-              src={build.author.image} 
-              alt={build.author.name || 'Author'} 
-              className="w-8 h-8 rounded-full"
+            <Image
+              src={build.author.image}
+              alt={build.author.name || 'Author'}
+              width={48}
+              height={48}
+              className="w-12 h-12 rounded-full"
             />
             <span className="text-zinc-400">{build.author.name}</span>
           </div>

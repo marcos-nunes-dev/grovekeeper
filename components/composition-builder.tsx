@@ -17,11 +17,11 @@ export default function CompositionBuilder() {
   const [expandedClass, setExpandedClass] = useState<string | null>(null)
 
   const addClassSection = () => {
-    const newClass: ClassSectionType = {
-      name: 'New Class',
+    const newSection: ClassSectionType = {
+      name: '',
       builds: []
     }
-    setClassSections([...classSections, newClass])
+    setClassSections([...classSections, newSection])
   }
 
   const updateBuilds = (classIndex: number, newBuilds: Build[]) => {
@@ -33,10 +33,12 @@ export default function CompositionBuilder() {
   const addBuildToClass = (classIndex: number) => {
     const updatedSections = [...classSections]
     const newBuild: Build = {
-      id: `build-${Date.now()}`,
-      name: `New Build ${updatedSections[classIndex].builds.length + 1}`,
+      id: crypto.randomUUID(),
+      name: 'New Build',
       equipment: {},
-      skills: {},
+      spells: {},
+      swaps: [],
+      status: 'draft',
       instructions: ''
     }
     updatedSections[classIndex].builds.push(newBuild)

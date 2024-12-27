@@ -7,9 +7,15 @@ interface EventSourceOptions {
   maxRetries?: number;
 }
 
-export function useEventSource<T = any>(
+interface EventSourceMessage {
+  data: string;
+  type: string;
+  lastEventId?: string;
+}
+
+export function useEventSource(
   url: string | null,
-  onMessage: (data: T) => void,
+  onMessage: (message: EventSourceMessage) => void,
   options: EventSourceOptions = {}
 ) {
   const eventSourceRef = useRef<EventSource | null>(null);

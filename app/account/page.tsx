@@ -1,6 +1,5 @@
 import { getServerSession } from "next-auth/next"
 import { redirect } from "next/navigation"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SignOutButton } from "../../components/auth/sign-out-button"
@@ -13,6 +12,11 @@ export default async function AccountPage() {
     redirect("/auth/signin")
   }
 
+  const user = {
+    name: session.user.name || null,
+    email: session.user.email || null,
+  }
+
   return (
     <div className="container mx-auto py-10">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -22,7 +26,7 @@ export default async function AccountPage() {
             <CardDescription>Update your account information</CardDescription>
           </CardHeader>
           <CardContent>
-            <UserProfileForm user={session.user} />
+            <UserProfileForm user={user} />
           </CardContent>
         </Card>
 

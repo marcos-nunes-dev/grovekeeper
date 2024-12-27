@@ -50,14 +50,10 @@ export default function BuildConfiguration({
   const [isTwoHanded, setIsTwoHanded] = useState(false)
 
   useEffect(() => {
-    if (!build.spells) {
+    if (!build.spells && updateBuild) {
       updateBuild({ ...build, spells: {} })
     }
   }, [build, updateBuild])
-
-  const updateBuildName = (newName: string) => {
-    updateBuild?.({ ...build, name: newName })
-  }
 
   const updateInstructions = (newInstructions: string) => {
     updateBuild?.({ ...build, instructions: newInstructions })

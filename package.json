@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "prepare": "husky"
+    "prepare": "husky",
+    "check": "tsc --noEmit && eslint ."
   },
   "dependencies": {
     "@auth/core": "^0.34.2",
