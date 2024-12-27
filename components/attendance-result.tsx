@@ -6,7 +6,31 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import Image from 'next/image'
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card"
+
+interface ComparisonData {
+  current: {
+    kd: number
+    guildName: string
+    guildSize: number
+  }
+  similar: {
+    kd: number
+    guildName: string
+    guildSize: number
+  } | null
+  best: {
+    kd: number
+    guildName: string
+    guildSize: number
+  } | null
+}
 
 interface PlayerAttendance {
   name: string
@@ -18,7 +42,8 @@ interface PlayerAttendance {
   avgIP: number
   totalAttendance: number
   attendanceComparison: number
-  topWeapons: string[] // Array of weapon IDs
+  topWeapons: string[]
+  comparison?: ComparisonData | null
 }
 
 export interface AttendanceResult {
@@ -35,6 +60,87 @@ const classIcons = {
   Healer: Cross,
   Support: Zap,
   Utility: Headphones,
+}
+
+function KDComparison({ data, playerClass }: { data: ComparisonData, playerClass: PlayerAttendance['mainClass'] }) {
+  const chartData = [
+    ...(data.similar ? [{
+      name: 'Similar Guild',
+      kd: data.similar.kd,
+      guildName: data.similar.guildName,
+      guildSize: data.similar.guildSize
+    }] : []),
+    ...(data.best ? [{
+      name: 'Best Guild',
+      kd: data.best.kd,
+      guildName: data.best.guildName,
+      guildSize: data.best.guildSize
+    }] : [])
+  ]
+
+  const playerKD = data.current.kd
+  const similarKD = data.similar?.kd || 0
+  const bestKD = data.best?.kd || 0
+
+  // Calculate percentages compared to player's K/D
+  const similarComparison = similarKD ? ((playerKD / similarKD) * 100 - 100) : null
+  const bestComparison = bestKD ? ((playerKD / bestKD) * 100 - 100) : null
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="space-y-2">
+        <h3 className="font-semibold">K/D Ratio Comparison ({playerClass})</h3>
+        <p className="text-sm text-zinc-400">Your K/D: {playerKD.toFixed(2)}</p>
+        {similarComparison !== null && (
+          <p className="text-sm text-zinc-400">
+            {similarComparison > 0 
+              ? <span className="text-green-400">+{similarComparison.toFixed(1)}%</span>
+              : <span className="text-red-400">{similarComparison.toFixed(1)}%</span>
+            } compared to similar guild
+          </p>
+        )}
+        {bestComparison !== null && (
+          <p className="text-sm text-zinc-400">
+            {bestComparison > 0 
+              ? <span className="text-green-400">+{bestComparison.toFixed(1)}%</span>
+              : <span className="text-red-400">{bestComparison.toFixed(1)}%</span>
+            } compared to best guild
+          </p>
+        )}
+      </div>
+      
+      <div className="h-[200px] w-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData}>
+            <XAxis dataKey="name" />
+            <YAxis domain={[0, 'auto']} />
+            <RechartsTooltip
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload
+                  return (
+                    <div className="bg-[#161B22] border border-zinc-800 rounded-lg p-2 text-sm">
+                      <p className="font-semibold">{data.guildName}</p>
+                      <p className="text-zinc-400">Guild Size: {data.guildSize}</p>
+                      <p className="text-zinc-400">K/D: {data.kd.toFixed(2)}</p>
+                    </div>
+                  )
+                }
+                return null
+              }}
+            />
+            <Bar 
+              dataKey="kd" 
+              fill="#00E6B4" 
+              radius={[4, 4, 0, 0]}
+            >
+              <ReferenceLine y={playerKD} stroke="#ffffff" strokeDasharray="3 3" />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
 }
 
 function TierBadge({ tier, attendanceComparison }: { tier: PlayerAttendance['tier']; attendanceComparison: number }) {
@@ -113,9 +219,26 @@ export default function AttendanceResult({ result }: AttendanceResultProps) {
                     <TierBadge tier={player.tier} attendanceComparison={player.attendanceComparison} />
                   </td>
                   <td className="py-3 px-4">
-                    <span className="text-green-500">{player.totalKills}</span>
-                    {' / '}
-                    <span className="text-red-500">{player.totalDeaths}</span>
+                    {player.comparison ? (
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <div className="flex gap-1 cursor-help">
+                            <span className="text-green-500">{player.totalKills}</span>
+                            <span>/</span>
+                            <span className="text-red-500">{player.totalDeaths}</span>
+                          </div>
+                        </HoverCardTrigger>
+                        <HoverCardContent side="right" className="w-[350px] p-0">
+                          <KDComparison data={player.comparison} playerClass={player.mainClass} />
+                        </HoverCardContent>
+                      </HoverCard>
+                    ) : (
+                      <div className="flex gap-1">
+                        <span className="text-green-500">{player.totalKills}</span>
+                        <span>/</span>
+                        <span className="text-red-500">{player.totalDeaths}</span>
+                      </div>
+                    )}
                   </td>
                   <td className="py-3 px-4">{player.avgIP}</td>
                   <td className="py-3 px-4">

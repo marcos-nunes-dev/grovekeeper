@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -72,14 +72,51 @@ export default function Attendance() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [guildMembers, setGuildMembers] = useState<string[]>([])
-  const debouncedGuildName = useDebounce(guildName, 500)
+  const debouncedGuildName = useDebounce(guildName, 300)
+
+  // Handle input change with immediate UI reset
+  const handleGuildNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value
+    setGuildName(newValue)
+    // Reset UI immediately when typing
+    if (guildInfo || guildMembers.length > 0 || result) {
+      setGuildInfo(null)
+      setGuildMembers([])
+      setResult(null)
+    }
+  }, [guildInfo, guildMembers.length, result])
+
+  // Memoize the player list calculation
+  const processedPlayerList = useMemo(() => {
+    if (!useCustomList) return guildMembers
+    
+    return playerNames
+      .split('\n')
+      .map(line => {
+        const match = line.match(/"([^"]+)"/)
+        return match ? match[1] : null
+      })
+      .filter(Boolean) as string[]
+  }, [useCustomList, playerNames, guildMembers])
+
+  // Memoize button disabled state
+  const isCalculateDisabled = useMemo(() => {
+    return (
+      isLoading || 
+      isSearching || 
+      !guildInfo || 
+      !guildMembers.length || 
+      (useCustomList && !playerNames.trim())
+    )
+  }, [isLoading, isSearching, guildInfo, guildMembers.length, useCustomList, playerNames])
 
   // Search for guild when name changes
-  const searchGuild = async (name: string) => {
+  const searchGuild = useCallback(async (name: string) => {
     if (!name) return
 
     try {
       setIsSearching(true)
+
       const response = await fetch(`/api/guilds/search?q=${encodeURIComponent(name)}`)
       if (!response.ok) return
 
@@ -98,48 +135,29 @@ export default function Attendance() {
           })
           setGuildMembers(details.members.map((m: { Name: string }) => m.Name))
         }
-      } else {
-        setGuildInfo(null)
-        setGuildMembers([])
-        // If there are multiple guilds but no exact match, show a message
-        if (guilds.length > 0) {
-          setGuildInfo({
-            type: 'error',
-            error: 'Multiple guilds found with similar names. Please use exact guild name.'
-          })
-        }
+      } else if (guilds.length > 0) {
+        setGuildInfo({
+          type: 'error',
+          error: 'Multiple guilds found with similar names. Please use exact guild name.'
+        })
       }
     } catch (error) {
       console.error('Error searching guild:', error)
     } finally {
       setIsSearching(false)
     }
-  }
+  }, [])
 
-  // Effect to search guild when name changes
+  // Effect to search guild when debounced name changes
   useEffect(() => {
     if (debouncedGuildName) {
       searchGuild(debouncedGuildName)
-    } else {
-      setGuildInfo(null)
-      setGuildMembers([])
     }
-  }, [debouncedGuildName])
+  }, [debouncedGuildName, searchGuild])
 
-  const handleCalculate = async () => {
-    if (!guildName) return;
-    if (useCustomList && !playerNames.trim()) return;
-
-    // Get player list from either custom input or guild members
-    const playerList = useCustomList
-      ? playerNames
-          .split('\n')
-          .map(line => {
-            const match = line.match(/"([^"]+)"/);
-            return match ? match[1] : null;
-          })
-          .filter(Boolean) as string[]
-      : guildMembers;
+  const handleCalculate = useCallback(async () => {
+    if (!guildName) return
+    if (useCustomList && !playerNames.trim()) return
 
     try {
       setIsLoading(true)
@@ -151,9 +169,8 @@ export default function Attendance() {
         },
         body: JSON.stringify({
           guildName,
-          playerList,
+          playerList: processedPlayerList,
           minGP: battleType === 'zvz' ? 20 : 10,
-          // Pass guild info we already have to avoid refetching
           guildInfo: guildInfo && guildInfo.type === 'success' ? {
             killFame: guildInfo.statistics.totalKillFame,
             deathFame: guildInfo.statistics.totalDeathFame,
@@ -173,7 +190,7 @@ export default function Attendance() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [guildName, useCustomList, playerNames, processedPlayerList, battleType, guildInfo])
 
   return (
     <div>
@@ -204,7 +221,7 @@ export default function Attendance() {
                 <Search className="w-5 h-5 text-zinc-400" />
                 <Input
                   value={guildName}
-                  onChange={(e) => setGuildName(e.target.value)}
+                  onChange={handleGuildNameChange}
                   placeholder="Enter guild name"
                   className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
                 />
@@ -253,13 +270,7 @@ export default function Attendance() {
           <Button 
             onClick={handleCalculate} 
             className="w-full bg-[#00E6B4] text-black hover:bg-[#1BECA0] disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={
-              isLoading || 
-              isSearching || 
-              !guildInfo || 
-              !guildMembers.length || 
-              (useCustomList && !playerNames.trim())
-            }
+            disabled={isCalculateDisabled}
           >
             {isLoading ? 'Calculating...' : isSearching ? 'Searching Guild...' : 'Calculate Attendance'}
           </Button>

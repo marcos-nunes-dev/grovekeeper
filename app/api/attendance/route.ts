@@ -21,6 +21,17 @@ interface PlayerData {
   itemsUsed: string[]
 }
 
+interface GuildComparison {
+  guildName: string
+  guildSize: number
+  killFame: number
+  dpsKillDeathRatio: number
+  tankKillDeathRatio: number
+  healerKillDeathRatio: number
+  supportKillDeathRatio: number
+  utilityKillDeathRatio: number
+}
+
 async function fetchPlayerData(guildName: string, playerList: string[], minGP: number): Promise<PlayerData[]> {
   // Fetch player data from Albion Battles API
   const response = await fetch(
@@ -107,6 +118,90 @@ function isSameWeek(date1: Date, date2: Date): boolean {
   )
 }
 
+async function getAverageGuildAttendance(minGP: number): Promise<number> {
+  try {
+    // Get the current month
+    const now = new Date()
+    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    // Get statistics from all guilds for the current month and minGP
+    const stats = await prisma.guildStatistics.findMany({
+      where: {
+        month: currentMonth,
+        minGP: minGP,
+      },
+      select: {
+        averageAttendance: true
+      }
+    })
+
+    if (!stats || stats.length === 0) return 0
+
+    // Calculate the average attendance across all guilds with the same minGP
+    const totalAttendance = stats.reduce((sum, stat) => sum + stat.averageAttendance, 0)
+    return totalAttendance / stats.length
+  } catch (error) {
+    console.error('Error getting average guild attendance:', error)
+    return 0
+  }
+}
+
+async function getSimilarGuildStats(guildSize: number, minGP: number, guildName: string): Promise<GuildComparison | null> {
+  try {
+    const now = new Date()
+    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    // Find a guild with similar size (±20% of current guild size)
+    const similarGuild = await prisma.guildStatistics.findFirst({
+      where: {
+        month: currentMonth,
+        minGP,
+        guildSize: {
+          gte: guildSize * 0.8,
+          lte: guildSize * 1.2,
+        },
+        NOT: {
+          guildName: {
+            mode: 'insensitive',
+            equals: guildName
+          }
+        }
+      },
+      orderBy: {
+        killFame: 'desc' // Get the best performing similar-sized guild
+      }
+    })
+
+    return similarGuild
+  } catch (error) {
+    console.error('Error getting similar guild stats:', error)
+    return null
+  }
+}
+
+async function getBestGuildStats(minGP: number): Promise<GuildComparison | null> {
+  try {
+    const now = new Date()
+    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    // Find the guild with highest kill fame
+    const bestGuild = await prisma.guildStatistics.findFirst({
+      where: {
+        month: currentMonth,
+        minGP,
+      },
+      orderBy: {
+        killFame: 'desc'
+      }
+    })
+
+    return bestGuild
+  } catch (error) {
+    console.error('Error getting best guild stats:', error)
+    return null
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { guildName, playerList, minGP, guildInfo } = await request.json()
@@ -117,6 +212,16 @@ export async function POST(request: Request) {
 
     // Fetch player data from the API
     const data = await fetchPlayerData(guildName, playerList, minGP)
+
+    // Get average attendance across all guilds
+    const globalAverageAttendance = await getAverageGuildAttendance(minGP)
+
+    // Get comparison guild statistics
+    const guildSize = guildInfo?.memberCount || playerList.length
+    const [similarGuild, bestGuild] = await Promise.all([
+      getSimilarGuildStats(guildSize, minGP, guildName),
+      getBestGuildStats(minGP)
+    ])
 
     // Group players by class for statistics
     const playersByClass = data.reduce((acc, player) => {
@@ -184,7 +289,10 @@ export async function POST(request: Request) {
     // Check if we already have statistics for this guild and minGP this month
     const existingStats = await prisma.guildStatistics.findFirst({
       where: {
-        guildName,
+        guildName: {
+          mode: 'insensitive',
+          equals: guildName
+        },
         minGP,
         month: currentMonth,
       },
@@ -243,25 +351,62 @@ export async function POST(request: Request) {
           avgIP: 0,
           totalAttendance: 0,
           attendanceComparison: -100,
-          topWeapons: []
+          topWeapons: [],
+          comparison: null
         }
       }
 
+      const mainClass = determineMainClass(playerData)
+      const kd = playerData.totalKills / (playerData.totalDeath || 1)
+
+      // Get comparison data for the player's class
+      const comparison = {
+        current: {
+          kd,
+          guildName,
+          guildSize
+        },
+        similar: similarGuild ? {
+          kd: getKdForClass(similarGuild, mainClass),
+          guildName: similarGuild.guildName,
+          guildSize: similarGuild.guildSize
+        } : null,
+        best: bestGuild ? {
+          kd: getKdForClass(bestGuild, mainClass),
+          guildName: bestGuild.guildName,
+          guildSize: bestGuild.guildSize
+        } : null
+      }
+
       const attendancePercentage = (playerData.battleNumber / averageAttendance) * 100 - 100
+      const globalAttendancePercentage = globalAverageAttendance > 0 
+        ? (playerData.battleNumber / globalAverageAttendance) * 100
+        : playerData.battleNumber * 100
+
+      // Determine tier based on global comparison
+      let tier: 'S' | 'A' | 'B' | 'C'
+      if (globalAttendancePercentage >= 150) {
+        tier = 'S'
+      } else if (globalAttendancePercentage >= 100) {
+        tier = 'A'
+      } else if (globalAttendancePercentage >= 50) {
+        tier = 'B'
+      } else {
+        tier = 'C'
+      }
 
       return {
         rank: index + 1,
         name,
-        mainClass: determineMainClass(playerData),
-        tier: playerData.battleNumber > 15 ? 'S' as const : 
-              playerData.battleNumber > 10 ? 'A' as const : 
-              playerData.battleNumber > 5 ? 'B' as const : 'C' as const,
+        mainClass,
+        tier,
         totalKills: playerData.totalKills,
         totalDeaths: playerData.totalDeath,
         avgIP: Math.round(playerData.averageIP),
         totalAttendance: playerData.battleNumber,
         attendanceComparison: Math.round(attendancePercentage),
-        topWeapons: playerData.itemsUsed.slice(0, 3)
+        topWeapons: Array.isArray(playerData.itemsUsed) ? playerData.itemsUsed.slice(0, 3) : [],
+        comparison
       }
     }).sort((a, b) => b.totalAttendance - a.totalAttendance)
 
@@ -274,5 +419,20 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error processing request:', error)
     return NextResponse.json({ error: 'Failed to process request' }, { status: 500 })
+  }
+}
+
+function getKdForClass(guild: GuildComparison, playerClass: 'DPS' | 'Tank' | 'Healer' | 'Support' | 'Utility'): number {
+  switch (playerClass) {
+    case 'DPS':
+      return guild.dpsKillDeathRatio
+    case 'Tank':
+      return guild.tankKillDeathRatio
+    case 'Healer':
+      return guild.healerKillDeathRatio
+    case 'Support':
+      return guild.supportKillDeathRatio
+    case 'Utility':
+      return guild.utilityKillDeathRatio
   }
 } 
