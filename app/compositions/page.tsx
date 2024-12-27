@@ -8,6 +8,7 @@ import { Search } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useDebounce } from '@/lib/hooks/use-debounce'
+import type { Build } from '@/lib/types/composition'
 
 type CompositionWithAuthor = {
   id: string
@@ -26,7 +27,7 @@ type CompositionWithAuthor = {
     classSections: number
   }
   classSections: Array<{
-    builds: Array<any>
+    builds: Array<Pick<Build, 'id' | 'name' | 'class' | 'content' | 'difficulty' | 'costTier'>>
   }>
 }
 

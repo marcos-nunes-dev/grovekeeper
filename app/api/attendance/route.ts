@@ -55,30 +55,6 @@ interface GuildComparison {
   utilityTotalHealing: number
 }
 
-interface ComparisonData {
-  current: {
-    kd: number
-    guildName: string
-    guildSize: number
-    avgIP: number
-    performance: number
-  }
-  similar: {
-    kd: number
-    guildName: string
-    guildSize: number
-    avgIP: number
-    performance: number
-  } | null
-  best: {
-    kd: number
-    guildName: string
-    guildSize: number
-    avgIP: number
-    performance: number
-  } | null
-}
-
 async function fetchPlayerData(guildName: string, playerList: string[], minGP: number): Promise<PlayerData[]> {
   // Fetch player data from Albion Battles API
   const response = await fetch(

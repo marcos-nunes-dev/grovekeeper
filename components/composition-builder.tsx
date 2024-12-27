@@ -100,7 +100,6 @@ export default function CompositionBuilder() {
         throw new Error('Failed to create composition')
       }
 
-      const composition = await response.json()
       toast.success('Composition created successfully')
       router.push('/compositions')
     } catch (error) {

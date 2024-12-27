@@ -2,6 +2,46 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 
+interface Swap {
+  itemId: string
+  spells: {
+    activeSpells: number[]
+    passiveSpells: number[]
+  }
+}
+
+interface CreateBuild {
+  name: string
+  class?: string
+  content?: string
+  difficulty?: string
+  costTier?: string
+  instructions?: string
+  equipment: {
+    head?: string
+    cape?: string
+    mainHand?: string
+    offHand?: string
+    chest?: string
+    shoes?: string
+    potion?: string
+    food?: string
+    mount?: string
+  }
+  spells: {
+    [itemId: string]: {
+      activeSpells: number[]
+      passiveSpells: number[]
+    }
+  }
+  swaps: Swap[]
+}
+
+interface CreateClassSection {
+  name: string
+  builds: CreateBuild[]
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -92,10 +132,10 @@ export async function POST(request: Request) {
         tags,
         authorId: user.id,
         classSections: {
-          create: classSections.map((section: any) => ({
+          create: classSections.map((section: CreateClassSection) => ({
             name: section.name,
             builds: {
-              create: section.builds.map((build: any) => ({
+              create: section.builds.map((build) => ({
                 name: build.name,
                 class: build.class,
                 content: build.content,
@@ -105,8 +145,7 @@ export async function POST(request: Request) {
                 equipment: build.equipment,
                 spells: build.spells,
                 swaps: build.swaps,
-                status: build.status,
-                authorId: user.id
+                status: 'published'
               }))
             }
           }))

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendUpdate } from "./updates/route";
+import { sendUpdate } from "@/lib/updates";
 
 const ALBION_API = "https://gameinfo.albiononline.com/api/gameinfo";
 
@@ -138,13 +138,7 @@ async function updateGlobalStats(data: AlbionPlayerResponse) {
 
 async function updatePlayerCache(data: AlbionPlayerResponse) {
   try {
-    const existingPlayer = await prisma.playerCache.findUnique({
-      where: {
-        playerName: data.Name.toLowerCase(),
-      },
-    });
-
-    const result = await prisma.playerCache.upsert({
+    const updatedPlayer = await prisma.playerCache.upsert({
       where: {
         playerName: data.Name.toLowerCase(),
       },
@@ -160,23 +154,22 @@ async function updatePlayerCache(data: AlbionPlayerResponse) {
         hasDeepSearch: false
       },
       update: {
-        id: data.Id,
         guildName: data.GuildName,
         killFame: BigInt(Math.floor(data.KillFame)),
         deathFame: BigInt(Math.floor(data.DeathFame)),
         pveTotal: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
         gatheringTotal: BigInt(Math.floor(data.LifetimeStatistics?.Gathering?.All?.Total || 0)),
         craftingTotal: BigInt(Math.floor(data.LifetimeStatistics?.Crafting?.Total || 0)),
-        updatedAt: new Date(),
-      },
+        updatedAt: new Date()
+      }
     });
 
     // If this is a new player, update global stats
-    if (!existingPlayer) {
+    if (!updatedPlayer) {
       await updateGlobalStats(data);
     }
 
-    return true;
+    return updatedPlayer;
   } catch (error) {
     console.error("Failed to update player cache:", error);
     return null;

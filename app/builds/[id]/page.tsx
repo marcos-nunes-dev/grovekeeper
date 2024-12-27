@@ -2,6 +2,24 @@ import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import ViewBuildClient from './client'
+import type { Build } from '@/lib/types/composition'
+
+interface BuildWithRelations extends Build {
+  author: {
+    id: string
+    name: string | null
+    image: string | null
+  }
+  classSection?: {
+    id: string
+    name: string
+    composition?: {
+      id: string
+      name: string
+      contentType: string | null
+    }
+  }
+}
 
 export default async function BuildPage({ params }: { params: { id: string } }) {
   const session = await getServerSession()
@@ -23,10 +41,24 @@ export default async function BuildPage({ params }: { params: { id: string } }) 
       id: params.id
     },
     include: {
-      author: true,
+      author: {
+        select: {
+          id: true,
+          name: true,
+          image: true
+        }
+      },
       classSection: {
-        include: {
-          composition: true
+        select: {
+          id: true,
+          name: true,
+          composition: {
+            select: {
+              id: true,
+              name: true,
+              contentType: true
+            }
+          }
         }
       }
     }
@@ -41,7 +73,7 @@ export default async function BuildPage({ params }: { params: { id: string } }) 
 
   return (
     <ViewBuildClient
-      build={dbBuild as any}
+      build={dbBuild as unknown as BuildWithRelations}
       isOwner={isOwner}
       canDelete={canDelete}
     />

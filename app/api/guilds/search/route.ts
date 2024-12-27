@@ -1,14 +1,5 @@
 import { NextResponse } from 'next/server'
 
-interface GuildSearchResult {
-  Id: string
-  Name: string
-  AllianceId: string
-  AllianceName: string
-  KillFame: number | null
-  DeathFame: number
-}
-
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
