@@ -13,6 +13,11 @@ import { ToastProvider } from '@/components/providers/toast-provider'
 export const metadata = {
   title: 'Grovekeeper - Albion Online Composition Builder',
   description: 'Create and discover powerful team compositions for Albion Online',
+  icons: {
+    icon: '/logo.svg',
+    shortcut: '/logo.svg',
+    apple: '/logo.svg',
+  },
 }
 
 export default function RootLayout({

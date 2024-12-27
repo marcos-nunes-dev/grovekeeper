@@ -6,8 +6,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import PageHero from '@/components/page-hero'
 import { Input } from '@/components/ui/input'
-import { Search } from 'lucide-react'
+import { Link2, Search } from 'lucide-react'
 import { useDebounce } from '@/lib/hooks/use-debounce'
+import Image from 'next/image'
 
 interface Build {
   id: string
@@ -79,19 +80,27 @@ function BuildCard({ build }: { build: Build }) {
       <div className="flex-shrink-0 flex flex-col gap-3">
         {mainWeapon && (
           <div className="w-14 h-14 bg-zinc-800/50 rounded-md p-1.5 relative group-hover:bg-zinc-800/70 transition-colors">
-            <img
+            <Image
               src={`https://render.albiononline.com/v1/item/${mainWeapon}.png`}
               alt="Main weapon"
+              width={56}
+              height={56}
               className="w-full h-full object-contain"
             />
           </div>
         )}
-        <div className="flex gap-1.5">
+        <div className="flex">
           {armor.map((item, index) => item && (
-            <div key={index} className="w-8 h-8 bg-zinc-800/50 rounded-md p-1 relative group-hover:bg-zinc-800/70 transition-colors">
-              <img
+            <div 
+              key={index} 
+              className="w-8 h-8 bg-zinc-800/50 rounded-md p-1 relative group-hover:bg-zinc-800/70 transition-colors -ml-2 first:ml-0 border border-[#0D1117]"
+              style={{ zIndex: armor.length - index }}
+            >
+              <Image
                 src={`https://render.albiononline.com/v1/item/${item}.png`}
                 alt={`Armor piece ${index + 1}`}
+                width={32}
+                height={32}
                 className="w-full h-full object-contain"
               />
             </div>
@@ -127,9 +136,11 @@ function BuildCard({ build }: { build: Build }) {
         <div className="mt-auto space-y-2">
           <div className="flex items-center gap-2">
             {build.author?.image ? (
-              <img 
+              <Image 
                 src={build.author.image} 
                 alt={build.author.name || 'Author'} 
+                width={24}
+                height={24}
                 className="w-6 h-6 rounded-full"
               />
             ) : (
@@ -147,7 +158,9 @@ function BuildCard({ build }: { build: Build }) {
 
           {build.classSection?.composition && (
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-zinc-500">Part of composition:</span>
+              <span className="text-zinc-500 flex items-center gap-1">
+                <Link2 className="w-4 h-4" />
+              </span>
               <Link 
                 href={`/compositions/${build.classSection.composition.id}`}
                 className="text-[#00E6B4] hover:underline truncate"
