@@ -12,6 +12,7 @@ import { ToastProvider } from '@/components/providers/toast-provider'
 import { Heart, Linkedin } from 'lucide-react'
 
 export const metadata = {
+  metadataBase: new URL('https://grovekeeper.app'),
   title: 'Grovekeeper - Essential Tools for Albion Online Players',
   description: 'Powerful tools for Albion Online players: Regear Calculator, ZvZ Attendance Tracker, Player Profiles, and Build Creator. Optimize your gameplay with our comprehensive suite of tools.',
   keywords: 'albion online, albion tools, albion online api, albion regear calculator, albion zvz tracker, albion build creator, albion player profiles, albion online tools, albion online tracker',

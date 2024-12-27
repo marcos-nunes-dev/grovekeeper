@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendHistoryUpdate } from './updates/route'
+import { sendHistoryUpdate } from './updates/history-service'
 
 interface MurderLedgerEvent {
   time: number
