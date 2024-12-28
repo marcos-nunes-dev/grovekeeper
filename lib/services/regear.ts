@@ -25,7 +25,7 @@ export async function getKillboardData(killboardUrl: string): Promise<RegearResu
       quality: item!.Quality,
       count: item!.Count,
       isReliablePrice: false,
-      priceHistory: [] as Array<{ timestamp: string; price: number }>
+      priceHistory: []
     }))
 
   // Process inventory items
@@ -39,42 +39,36 @@ export async function getKillboardData(killboardUrl: string): Promise<RegearResu
       quality: item.Quality,
       count: item.Count,
       isReliablePrice: false,
-      priceHistory: [] as Array<{ timestamp: string; price: number }>
+      priceHistory: []
     }))
 
   // Fetch prices for all items from our API route
   const allItems = [...equippedItems, ...bagItems]
-  const itemIds = allItems.map(item => item.id).join(',')
+  const itemIds = allItems.map(item => `${item.id}:${item.quality}`).join(',')
   
-  const pricesResponse = await fetch(`/api/prices?items=${itemIds}`)
+  const pricesResponse = await fetch(`/api/prices/v2?items=${itemIds}`)
   if (!pricesResponse.ok) throw new Error('Failed to fetch price data')
   
   const pricesData: PricesResponse = await pricesResponse.json()
   
   // Update items with price data
   equippedItems.forEach(item => {
-    const priceData = pricesData[item.id]
+    const priceData = pricesData[item.id]?.[item.quality]
     if (priceData) {
       item.value = priceData.avg_price
       item.formattedValue = priceData.formatted.avg
       item.isReliablePrice = isPriceReliable(priceData)
-      item.priceHistory = priceData.data.map(point => ({
-        timestamp: point.timestamp,
-        price: point.avg_price
-      }))
+      item.priceHistory = priceData.priceHistory || []
     }
   })
   
   bagItems.forEach(item => {
-    const priceData = pricesData[item.id]
+    const priceData = pricesData[item.id]?.[item.quality]
     if (priceData) {
       item.value = priceData.avg_price
       item.formattedValue = priceData.formatted.avg
       item.isReliablePrice = isPriceReliable(priceData)
-      item.priceHistory = priceData.data.map(point => ({
-        timestamp: point.timestamp,
-        price: point.avg_price
-      }))
+      item.priceHistory = priceData.priceHistory || []
     }
   })
 

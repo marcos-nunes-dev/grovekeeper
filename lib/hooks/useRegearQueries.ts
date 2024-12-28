@@ -43,15 +43,17 @@ export function useEquivalentPrices() {
     queryKey: ['equivalentPrices'],
     queryFn: async () => {
       try {
-        const response = await fetch(`/api/prices?items=${EQUIVALENT_ITEMS.join(',')}`)
+        // All equivalent items are normal quality (1)
+        const itemsWithQuality = EQUIVALENT_ITEMS.map(item => `${item}:1`).join(',')
+        const response = await fetch(`/api/prices/v2?items=${itemsWithQuality}`)
         if (!response.ok) throw new Error('Failed to fetch equivalent prices')
         const data = await response.json()
         
         // Extract average prices for each item
         return {
-          T4_SKILLBOOK_STANDARD: data.T4_SKILLBOOK_STANDARD?.avg_price ?? 0,
-          TREASURE_DECORATIVE_RARITY1: data.TREASURE_DECORATIVE_RARITY1?.avg_price ?? 0,
-          UNIQUE_GVGTOKEN_GENERIC: data.UNIQUE_GVGTOKEN_GENERIC?.avg_price ?? 0
+          T4_SKILLBOOK_STANDARD: data.T4_SKILLBOOK_STANDARD?.[1]?.avg_price ?? 0,
+          TREASURE_DECORATIVE_RARITY1: data.TREASURE_DECORATIVE_RARITY1?.[1]?.avg_price ?? 0,
+          UNIQUE_GVGTOKEN_GENERIC: data.UNIQUE_GVGTOKEN_GENERIC?.[1]?.avg_price ?? 0
         }
       } catch (error) {
         console.error('Error fetching equivalent prices:', error)

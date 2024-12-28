@@ -18,7 +18,6 @@ export function isPriceReliable(priceData: {
   avg_price: number
   min_price: number
   max_price: number
-  data_points?: number
 }): boolean {
   if (!priceData.avg_price) return false
   
@@ -26,11 +25,6 @@ export function isPriceReliable(priceData: {
   const priceRange = priceData.max_price - priceData.min_price
   const avgPrice = priceData.avg_price
   const variationPercentage = (priceRange / avgPrice) * 100
-
-  // If we have data_points info, check if we have enough samples
-  if (typeof priceData.data_points === 'number' && priceData.data_points < 5) {
-    return false
-  }
 
   // If price variation is too high (more than 50%), consider it unreliable
   if (variationPercentage > 50) {

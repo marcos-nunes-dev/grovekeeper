@@ -6,7 +6,7 @@ export interface RegearItem {
   quality: number
   count: number
   isReliablePrice: boolean
-  priceHistory?: Array<{
+  priceHistory: Array<{
     timestamp: string
     price: number
   }>
@@ -82,20 +82,21 @@ export interface PriceData {
   avg_price: number
   min_price: number
   max_price: number
-  data_points?: number
-  data: Array<{
-    timestamp: string
-    avg_price: number
-  }>
   formatted: {
     avg: string
     min: string
     max: string
   }
+  priceHistory: Array<{
+    timestamp: string
+    price: number
+  }>
 }
 
 export interface PricesResponse {
-  [key: string]: PriceData | null
+  [itemId: string]: {
+    [quality: string]: PriceData | null
+  }
 }
 
 export interface RegearFilters {

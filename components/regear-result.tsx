@@ -184,7 +184,7 @@ function ItemTable({ items, title, customCalculation, ignoredItems, onToggleItem
                       compact ? "w-8 h-8" : "w-12 h-12"
                     )}>
                       <Image
-                        src={`https://render.albiononline.com/v1/item/${item.id}.png`}
+                        src={`https://render.albiononline.com/v1/item/${item.id}.png?quality=${item.quality}`}
                         alt={item.name}
                         width={48}
                         height={48}
