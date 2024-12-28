@@ -25,20 +25,25 @@ export function CommandMenu() {
 
     const down = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase() as ShortcutKey
-      if ((e.metaKey || e.ctrlKey) && shortcuts[key]) {
+      
+      // Only Cmd+K works globally to open/close the palette
+      if ((e.metaKey || e.ctrlKey) && key === 'k') {
         e.preventDefault()
-        if (key === 'k') {
-          shortcuts[key]()
-        } else {
-          setOpen(false)
-          shortcuts[key]()
-        }
+        shortcuts[key]()
+        return
+      }
+
+      // Other shortcuts only work when command palette is open and with Cmd/Ctrl
+      if (open && (e.metaKey || e.ctrlKey) && key in shortcuts && key !== 'k') {
+        e.preventDefault()
+        setOpen(false)
+        shortcuts[key]()
       }
     }
 
     document.addEventListener('keydown', down)
     return () => document.removeEventListener('keydown', down)
-  }, [router])
+  }, [router, open])
 
   const runCommand = React.useCallback((command: () => void) => {
     setOpen(false)
@@ -148,6 +153,15 @@ export function CommandMenu() {
               </div>
             </CommandItem>
           </CommandGroup>
+          <CommandSeparator />
+          <div className="px-3 py-2 text-xs text-zinc-400 flex items-center justify-center gap-2">
+            <span>Navigate with</span>
+            <div className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 bg-zinc-800/50 rounded text-zinc-500">↑</kbd>
+              <kbd className="px-1.5 py-0.5 bg-zinc-800/50 rounded text-zinc-500">↓</kbd>
+            </div>
+            <span>arrows</span>
+          </div>
         </CommandList>
       </CommandDialog>
     </>

@@ -3,8 +3,6 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    console.log('Fetching statistics...')
-    
     // Get or create the statistics record
     const stats = await prisma.grovekeeperStatistics.upsert({
       where: {
@@ -20,8 +18,6 @@ export async function GET() {
       },
       update: {}
     })
-
-    console.log('Statistics fetched successfully:', stats)
 
     return NextResponse.json({
       // Regear stats
@@ -49,7 +45,6 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    console.log('Updating statistics...')
     const { 
       // Regear stats
       value, 
@@ -66,10 +61,6 @@ export async function POST(request: Request) {
     const players = BigInt(Math.max(0, Math.floor(playersTracked)))
     const pve = BigInt(Math.max(0, Math.floor(pveFame)))
     const pvp = BigInt(Math.max(0, Math.floor(pvpFame)))
-
-    console.log('Processing update with values:', { 
-      silverValue, deaths, players, pve, pvp 
-    })
 
     // Atomically increment all counters
     const stats = await prisma.grovekeeperStatistics.upsert({
@@ -102,8 +93,6 @@ export async function POST(request: Request) {
         }
       }
     })
-
-    console.log('Statistics updated successfully:', stats)
 
     return NextResponse.json({
       // Regear stats

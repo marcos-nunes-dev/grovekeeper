@@ -157,8 +157,6 @@ export default function GroupRegearResultDisplay({ result }: GroupRegearResultPr
     }
   }
 
-  console.log(filteredResult)
-
   return (
     <div className="space-y-6 pb-24">
       <GroupRegearFilters filters={filters} onChange={setFilters} />

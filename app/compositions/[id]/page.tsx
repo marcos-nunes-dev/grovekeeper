@@ -69,11 +69,6 @@ export default function CompositionPage({ params }: { params: { id: string } }) 
   }
 
   const isOwner = session?.user?.email === composition.author.email
-  console.log('Ownership check:', {
-    sessionEmail: session?.user?.email,
-    authorEmail: composition.author.email,
-    isOwner
-  })
 
   const handleUpdateComposition = async () => {
     if (!session) {

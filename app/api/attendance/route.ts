@@ -162,16 +162,12 @@ async function getAverageGuildAttendance(minGP: number): Promise<number> {
     })
 
     if (!stats || stats.length === 0) {
-      console.log(`No guild statistics found for minGP: ${minGP}`)
       return 0
     }
-
-    console.log(`Found ${stats.length} guilds with minGP ${minGP}:`, stats.map(s => s.guildName))
 
     // Calculate the average attendance across all guilds with the same minGP
     const totalAttendance = stats.reduce((sum, stat) => sum + stat.averageAttendance, 0)
     const average = totalAttendance / stats.length
-    console.log(`Average attendance for minGP ${minGP}: ${average}`)
     return average
   } catch (error) {
     console.error('Error getting average guild attendance:', error)
@@ -343,7 +339,6 @@ export async function POST(request: Request) {
         // If we have stats this month, check if they're from the same week
         if (isSameWeek(existingStats.updatedAt, now)) {
           // Skip update if it's the same week
-          console.log('Stats already exist for this week, skipping update')
           return
         }
 

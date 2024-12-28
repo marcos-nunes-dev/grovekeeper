@@ -150,8 +150,6 @@ export default function CompositionsContent() {
         const response = await fetch(`/api/compositions?search=${search}`)
         if (!response.ok) throw new Error('Failed to fetch compositions')
         const data = await response.json()
-        console.log('Session user:', session?.user)
-        console.log('Compositions data:', data)
         setCompositions(data)
       } catch (error) {
         console.error('Error fetching compositions:', error)
@@ -165,12 +163,6 @@ export default function CompositionsContent() {
 
   const userCompositions = compositions.filter(comp => {
     const isOwner = session?.user?.email === comp.author.email
-    console.log('Comparing:', {
-      userEmail: session?.user?.email,
-      authorEmail: comp.author.email,
-      isOwner,
-      compName: comp.name
-    })
     return isOwner
   })
 

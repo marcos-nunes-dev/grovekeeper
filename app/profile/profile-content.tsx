@@ -70,6 +70,7 @@ export default function ProfileContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isCheckingNewEvents, setIsCheckingNewEvents] = useState(false)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   // Add profile stats
   const { data: stats } = useProfileStats()
@@ -104,6 +105,8 @@ export default function ProfileContent() {
   );
 
   useEffect(() => {
+    if (!searchParams) return;
+    
     const nameParam = searchParams.get('name')
     const regionParam = searchParams.get('region')
 
@@ -155,12 +158,16 @@ export default function ProfileContent() {
       const eventsResponse = await fetch(`/api/player/${encodeURIComponent(name)}/events?limit=10`)
       const eventsData = await eventsResponse.json() as EventsResponse
 
-      setSelectedPlayer({
+      // Set both player data and events in a single update
+      const newPlayerData = {
         ...data.data,
         events: eventsData.data
-      })
+      };
+
+      setSelectedPlayer(newPlayerData)
       setCacheStatus(data.cacheStatus)
       setIsCheckingNewEvents(eventsData.isCheckingNewEvents)
+      setIsInitialLoad(false)
 
       // Update URL with search parameters
       router.push(`/profile?name=${encodeURIComponent(name)}&region=${selectedRegion}`)
@@ -259,7 +266,7 @@ export default function ProfileContent() {
       </PageHero>
 
       <div className="container mx-auto px-4">
-        {selectedPlayer && !isLoading && (
+        {selectedPlayer && (!isLoading || !isInitialLoad) && (
           <PlayerProfile 
             playerData={selectedPlayer} 
             events={selectedPlayer.events || []}

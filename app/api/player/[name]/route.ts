@@ -40,6 +40,12 @@ async function findPlayer(playerName: string): Promise<string> {
   const response = await fetch(searchUrl);
 
   if (!response.ok) {
+    if (response.status === 504) {
+      throw new Error("Albion's server is not responding. Please try again in a few moments.");
+    }
+    if (response.status >= 500) {
+      throw new Error("Albion's server is having issues. Please try again in a few moments.");
+    }
     throw new Error(`Search failed: ${response.status}`);
   }
 
@@ -68,13 +74,19 @@ async function findPlayer(playerName: string): Promise<string> {
   return player.Id;
 }
 
-async function fetchPlayerDetails(
+async function fetchPlayerData(
   playerId: string
 ): Promise<AlbionPlayerResponse> {
   const detailsUrl = `${ALBION_API}/players/${playerId}`;
   const response = await fetch(detailsUrl);
 
   if (!response.ok) {
+    if (response.status === 504) {
+      throw new Error("Albion's server is not responding. Please try again in a few moments.");
+    }
+    if (response.status >= 500) {
+      throw new Error("Albion's server is having issues. Please try again in a few moments.");
+    }
     throw new Error(`Failed to fetch player details: ${response.status}`);
   }
 
@@ -179,7 +191,7 @@ async function updatePlayerCache(data: AlbionPlayerResponse) {
 // Helper function to fetch fresh data from Albion API
 async function fetchFreshData(playerName: string, region: string) {
   const playerId = await findPlayer(playerName);
-  const playerData = await fetchPlayerDetails(playerId);
+  const playerData = await fetchPlayerData(playerId);
   const formattedData = await formatPlayerData(playerData, region);
   return { playerData, formattedData };
 }
@@ -199,6 +211,33 @@ type FreshDataResult = {
     gatheringTotal: number;
     craftingTotal: number;
     region: string;
+  };
+}
+
+async function processAndCachePlayerData(playerData: AlbionPlayerResponse, playerName: string, region: string) {
+  // Use the existing updatePlayerCache function to maintain consistency
+  await updatePlayerCache(playerData);
+
+  // Return formatted response
+  return {
+    data: {
+      id: playerData.Id,
+      name: playerName,
+      guildName: playerData.GuildName || "",
+      allianceName: playerData.AllianceName || "",
+      allianceTag: playerData.AllianceTag || "",
+      avatar: `https://render.albiononline.com/v1/player/${playerName}/avatar?quality=0`,
+      killFame: playerData.KillFame,
+      deathFame: playerData.DeathFame,
+      pveTotal: playerData.LifetimeStatistics.PvE?.Total || 0,
+      gatheringTotal: playerData.LifetimeStatistics.Gathering?.All?.Total || 0,
+      craftingTotal: playerData.LifetimeStatistics.Crafting?.Total || 0,
+      region,
+    },
+    cacheStatus: {
+      isStale: false,
+      isUpdating: false,
+    },
   };
 }
 
@@ -242,7 +281,7 @@ export async function GET(
         },
       };
 
-      // Start background update only if cache is stale
+      // Start background update if cache is stale
       if (!isCacheFresh) {
         // Use Promise.race to timeout the background update after 10 seconds
         Promise.race([
@@ -292,43 +331,25 @@ export async function GET(
       return NextResponse.json(response);
     }
 
-    // No cache, fetch fresh data
-    try {
-      const { playerData, formattedData } = await fetchFreshData(
-        playerName,
-        region
-      );
+    // If no cache, fetch fresh data
+    const playerId = await findPlayer(playerName);
+    const playerData = await fetchPlayerData(playerId);
 
-      // Save to cache
-      await updatePlayerCache(playerData);
-
-      // Return fresh data
-      return NextResponse.json({
-        data: formattedData,
+    // Process and return the data
+    const response = await processAndCachePlayerData(playerData, playerName, region);
+    return NextResponse.json(response);
+  } catch (error) {
+    console.error('Error fetching player data:', error);
+    // Ensure error response is properly formatted as JSON
+    return NextResponse.json(
+      { 
+        error: error instanceof Error ? error.message : 'An error occurred while fetching player data',
         cacheStatus: {
           isStale: false,
-          isUpdating: false,
-        },
-      });
-    } catch (error) {
-      throw new Error(
-        error instanceof Error ? error.message : "Failed to fetch fresh data"
-      );
-    }
-  } catch (error) {
-    console.error("Error fetching player data:", error);
-    const status =
-      error instanceof Error && error.message === "Player not found"
-        ? 404
-        : 500;
-    const message = error instanceof Error ? error.message : "Unknown error";
-
-    return new NextResponse(
-      JSON.stringify({
-        error: "Failed to fetch player data",
-        details: message,
-      }),
-      { status }
+          isUpdating: false
+        }
+      },
+      { status: error instanceof Error && error.message === "Player not found" ? 404 : 500 }
     );
   }
 }

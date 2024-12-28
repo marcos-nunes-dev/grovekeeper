@@ -33,6 +33,18 @@ const handler = NextAuth({
       }
       return token
     },
+    async redirect({ url, baseUrl }) {
+      // If the url is relative, prepend the baseUrl
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`
+      }
+      // If the url is already absolute but on the same host, allow it
+      else if (new URL(url).origin === baseUrl) {
+        return url
+      }
+      // Default to the home page
+      return baseUrl
+    },
   },
   session: {
     strategy: "jwt",
