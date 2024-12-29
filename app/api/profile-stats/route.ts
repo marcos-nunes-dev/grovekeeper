@@ -16,7 +16,7 @@ export async function GET() {
         totalPveFame: BigInt(0),
         totalPvpFame: BigInt(0)
       },
-      update: {}
+      update: {} // No update needed for GET request
     })
 
     return NextResponse.json({
@@ -47,8 +47,8 @@ export async function POST(request: Request) {
   try {
     const { 
       // Regear stats
-      value, 
-      deathsCount,
+      value = 0, 
+      deathsCount = 0,
       // Profile stats
       playersTracked = 0,
       pveFame = 0,
@@ -56,8 +56,8 @@ export async function POST(request: Request) {
     } = await request.json()
 
     // Convert to BigInt and ensure positive values
-    const silverValue = BigInt(Math.max(0, Math.floor(value || 0)))
-    const deaths = BigInt(Math.max(0, Math.floor(deathsCount || 0)))
+    const silverValue = BigInt(Math.max(0, Math.floor(value)))
+    const deaths = BigInt(Math.max(0, Math.floor(deathsCount)))
     const players = BigInt(Math.max(0, Math.floor(playersTracked)))
     const pve = BigInt(Math.max(0, Math.floor(pveFame)))
     const pvp = BigInt(Math.max(0, Math.floor(pvpFame)))

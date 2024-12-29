@@ -25,6 +25,7 @@ import AttendanceResult, { type AttendanceResult as AttendanceResultType } from 
 import GuildInfo from '@/components/guild-info'
 import PageHero from '@/components/page-hero'
 import { useDebounce } from '@/lib/hooks/use-debounce'
+import { useApiHealth } from '@/lib/hooks/useApiHealth'
 
 type BattleType = 'zvz' | 'all'
 
@@ -80,6 +81,7 @@ export default function Attendance() {
   const retryTimeoutRef = useRef<NodeJS.Timeout>()
   const retryCountRef = useRef(0)
   const MAX_RETRIES = 3
+  const { isHealthy, isLoading: isHealthLoading } = useApiHealth()
 
   // Handle input change with immediate UI reset
   const handleGuildNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -309,6 +311,24 @@ export default function Attendance() {
                   placeholder="Enter guild name"
                   className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
                 />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div 
+                        className={`w-2 h-2 rounded-full transition-colors ${
+                          isHealthLoading ? 'bg-yellow-500' :
+                          isHealthy ? 'bg-green-500' : 'bg-red-500'
+                        }`}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        {isHealthLoading ? 'Checking API status...' :
+                         isHealthy ? 'Albion API is operational' : 'Albion API is down'}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
             <div className="h-px bg-zinc-800" />

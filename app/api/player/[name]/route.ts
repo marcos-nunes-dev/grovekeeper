@@ -121,35 +121,12 @@ async function getCachedPlayer(playerName: string) {
   }
 }
 
-async function updateGlobalStats(data: AlbionPlayerResponse) {
-  try {
-    await prisma.grovekeeperStatistics.upsert({
-      where: { id: 'singleton' },
-      create: {
-        id: 'singleton',
-        playersTracked: BigInt(1),
-        totalPvpFame: BigInt(Math.floor(data.KillFame)),
-        totalPveFame: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
-      },
-      update: {
-        playersTracked: {
-          increment: 1
-        },
-        totalPvpFame: {
-          increment: BigInt(Math.floor(data.KillFame))
-        },
-        totalPveFame: {
-          increment: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0))
-        }
-      }
-    });
-  } catch (error) {
-    console.error("Failed to update global stats:", error);
-  }
-}
-
 async function updatePlayerCache(data: AlbionPlayerResponse) {
   try {
+    // Check if player exists in cache before upsert
+    const existingPlayer = await getCachedPlayer(data.Name);
+    const isNewPlayer = !existingPlayer;
+
     const updatedPlayer = await prisma.playerCache.upsert({
       where: {
         playerName: data.Name.toLowerCase(),
@@ -176,9 +153,30 @@ async function updatePlayerCache(data: AlbionPlayerResponse) {
       }
     });
 
-    // If this is a new player, update global stats
-    if (!updatedPlayer) {
-      await updateGlobalStats(data);
+    // Only update global stats if this is a new player
+    if (isNewPlayer) {
+      await prisma.grovekeeperStatistics.upsert({
+        where: { id: 'singleton' },
+        create: {
+          id: 'singleton',
+          playersTracked: BigInt(1),
+          totalPvpFame: BigInt(Math.floor(data.KillFame)),
+          totalPveFame: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
+          deathsAnalyzed: BigInt(0),
+          silverCalculated: BigInt(0)
+        },
+        update: {
+          playersTracked: {
+            increment: BigInt(1)
+          },
+          totalPvpFame: {
+            increment: BigInt(Math.floor(data.KillFame))
+          },
+          totalPveFame: {
+            increment: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0))
+          }
+        }
+      });
     }
 
     return updatedPlayer;

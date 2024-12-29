@@ -14,12 +14,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useEventSource } from '@/lib/hooks/useEventSource'
 import { MurderLedgerEvent } from '@/types/albion'
 import { useProfileStats } from '@/lib/hooks/useProfileStats'
 import { AnimatedCounter } from '@/components/ui/animated-counter'
 import type { ApiResponse } from '@/lib/types/api'
 import { isErrorResponse } from '@/lib/types/api'
+import { useApiHealth } from '@/lib/hooks/useApiHealth'
 
 interface EventsResponse {
   data: MurderLedgerEvent[];
@@ -71,6 +78,7 @@ export default function ProfileContent() {
   const [error, setError] = useState<string | null>(null)
   const [isCheckingNewEvents, setIsCheckingNewEvents] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const { isHealthy, isLoading: isHealthLoading } = useApiHealth()
 
   // Add profile stats
   const { data: stats } = useProfileStats()
@@ -246,6 +254,24 @@ export default function ProfileContent() {
                     }
                   }}
                 />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div 
+                        className={`w-2 h-2 rounded-full transition-colors ${
+                          isHealthLoading ? 'bg-yellow-500' :
+                          isHealthy ? 'bg-green-500' : 'bg-red-500'
+                        }`}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        {isHealthLoading ? 'Checking API status...' :
+                         isHealthy ? 'Albion API is operational' : 'Albion API is down'}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
             <div className="h-px bg-zinc-800" />
