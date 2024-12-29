@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { getOrCreateClientHandlers, removeClientHandler, type SSEResponse } from '@/lib/updates'
-import { prismaSSE } from '@/lib/prisma-sse'
 
 export async function GET(
   request: Request,
