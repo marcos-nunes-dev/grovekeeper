@@ -181,7 +181,7 @@ export default function Attendance() {
         if (!detailsResponse.ok) {
           if (detailsResponse.status === 504) {
             setError(
-              'The request timed out. The Albion API is experiencing high latency. Please try again. You can use the "Use custom member list" option to avoid this issue and faster results.'
+              'The request timed out. The Albion API is experiencing high latency. Please try again. You can use the "Use custom member list" option and type the exactly guild name to avoid this issue and faster results.'
             );
             return;
           }
@@ -208,10 +208,10 @@ export default function Attendance() {
         if (error instanceof Error) {
           if (error.name === "AbortError") {
             errorMessage =
-              "The request timed out. The Albion API is experiencing high latency. Please try again.";
+              "The request timed out. The Albion API is experiencing high latency. Please try again. You can use the 'Use custom member list' option and type the exactly guild name to avoid this issue and faster results.";
           } else if (error.message.includes("504")) {
             errorMessage =
-              "The request timed out. The Albion API is experiencing high latency. Please try again.";
+              "The request timed out. The Albion API is experiencing high latency. Please try again. You can use the 'Use custom member list' option and type the exactly guild name to avoid this issue and faster results.";
           }
         }
 
@@ -301,7 +301,7 @@ export default function Attendance() {
           if (error.name === "AbortError") return;
           console.error("Error searching guild:", error);
           setError(
-            "Failed to search guild. The Albion API might be experiencing issues."
+            "Failed to search guild. The Albion API might be experiencing issues. You can use the 'Use custom member list' option and type the exactly guild name to avoid this issue and faster results."
           );
         }
       } finally {
@@ -364,7 +364,7 @@ export default function Attendance() {
             if (error.name === "AbortError") return;
             console.error("Error searching guild:", error);
             setError(
-              "Failed to search for guilds. The Albion API might be experiencing issues."
+              "Failed to search for guilds. The Albion API might be experiencing issues. You can use the 'Use custom member list' option and type the exactly guild name to avoid this issue and faster results."
             );
           }
         } finally {
