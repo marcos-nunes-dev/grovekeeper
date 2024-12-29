@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { PrismaClient } from '@prisma/client'
+import { withPrisma } from '@/lib/prisma-helper'
 
 interface PlayerData {
   name: string
@@ -141,100 +142,6 @@ function isSameWeek(date1: Date, date2: Date): boolean {
   )
 }
 
-async function getAverageGuildAttendance(minGP: number): Promise<number> {
-  try {
-    // Get the current month
-    const now = new Date()
-    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-
-    // Get statistics from all guilds for the current month and minGP
-    const stats = await prisma.$transaction(async (tx) => {
-      return await tx.guildStatistics.findMany({
-        where: {
-          month: currentMonth,
-          minGP: minGP,
-        },
-        select: {
-          averageAttendance: true,
-          guildName: true
-        }
-      })
-    })
-
-    if (!stats || stats.length === 0) {
-      return 0
-    }
-
-    // Calculate the average attendance across all guilds with the same minGP
-    const totalAttendance = stats.reduce((sum, stat) => sum + stat.averageAttendance, 0)
-    const average = totalAttendance / stats.length
-    return average
-  } catch (error) {
-    console.error('Error getting average guild attendance:', error)
-    return 0
-  }
-}
-
-async function getSimilarGuildStats(guildSize: number, minGP: number, guildName: string): Promise<GuildComparison | null> {
-  try {
-    const now = new Date()
-    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-
-    // Find a guild with similar size (±20% of current guild size)
-    const similarGuild = await prisma.$transaction(async (tx) => {
-      return await tx.guildStatistics.findFirst({
-        where: {
-          month: currentMonth,
-          minGP,
-          guildSize: {
-            gte: Math.floor(guildSize * 0.8),
-            lte: Math.ceil(guildSize * 1.2),
-          },
-          NOT: {
-            guildName: {
-              mode: 'insensitive',
-              equals: guildName
-            }
-          }
-        },
-        orderBy: {
-          killFame: 'desc' // Get the best performing similar-sized guild
-        }
-      })
-    })
-
-    return similarGuild
-  } catch (error) {
-    console.error('Error getting similar guild stats:', error)
-    return null
-  }
-}
-
-async function getBestGuildStats(minGP: number): Promise<GuildComparison | null> {
-  try {
-    const now = new Date()
-    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-
-    // Find the guild with highest kill fame
-    const bestGuild = await prisma.$transaction(async (tx) => {
-      return await tx.guildStatistics.findFirst({
-        where: {
-          month: currentMonth,
-          minGP,
-        },
-        orderBy: {
-          killFame: 'desc'
-        }
-      })
-    })
-
-    return bestGuild
-  } catch (error) {
-    console.error('Error getting best guild stats:', error)
-    return null
-  }
-}
-
 export async function POST(request: Request) {
   try {
     const { guildName, playerList, minGP, guildInfo } = await request.json()
@@ -246,15 +153,20 @@ export async function POST(request: Request) {
     // Fetch player data from the API
     const data = await fetchPlayerData(guildName, playerList, minGP)
 
-    // Get average attendance across all guilds
-    const globalAverageAttendance = await getAverageGuildAttendance(minGP)
+    // Use withPrisma to handle all database operations in a single transaction
+    const { globalAverageAttendance, similarGuild, bestGuild } = await withPrisma(async (prisma) => {
+      const [avgAttendance, similar, best] = await Promise.all([
+        getAverageGuildAttendance(prisma, minGP),
+        getSimilarGuildStats(prisma, guildInfo?.memberCount || playerList.length, minGP, guildName),
+        getBestGuildStats(prisma, minGP)
+      ])
 
-    // Get comparison guild statistics
-    const guildSize = guildInfo?.memberCount || playerList.length
-    const [similarGuild, bestGuild] = await Promise.all([
-      getSimilarGuildStats(guildSize, minGP, guildName),
-      getBestGuildStats(minGP)
-    ])
+      return {
+        globalAverageAttendance: avgAttendance,
+        similarGuild: similar,
+        bestGuild: best
+      }
+    })
 
     // Process player data
     const playersByClass = data.reduce((acc, player) => {
@@ -319,9 +231,9 @@ export async function POST(request: Request) {
     // Set to first day of the month
     const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    // Check if we already have statistics for this guild and minGP this month
-    await prisma.$transaction(async (tx) => {
-      const existingStats = await tx.guildStatistics.findFirst({
+    // Update guild statistics using withPrisma
+    await withPrisma(async (prisma) => {
+      const existingStats = await prisma.guildStatistics.findFirst({
         where: {
           guildName: {
             mode: 'insensitive',
@@ -343,7 +255,7 @@ export async function POST(request: Request) {
         }
 
         // Update stats if it's a different week in the same month
-        await tx.guildStatistics.update({
+        await prisma.guildStatistics.update({
           where: {
             id: existingStats.id
           },
@@ -389,7 +301,7 @@ export async function POST(request: Request) {
       }
 
       // Create new stats if we don't have any for this month
-      await tx.guildStatistics.create({
+      await prisma.guildStatistics.create({
         data: {
           guildName,
           month: currentMonth,
@@ -466,7 +378,7 @@ export async function POST(request: Request) {
         current: {
           kd,
           guildName,
-          guildSize,
+          guildSize: guildInfo?.memberCount || playerList.length,
           avgIP: playerData.averageIP,
           performance: mainClass === 'Healer' 
             ? parseFloat(playerData.totalHealing)
@@ -608,4 +520,92 @@ function getPerformanceForClass(guild: GuildComparison, playerClass: 'DPS' | 'Ta
 
   // Return the performance per player of this class
   return rawPerformance / classCount
+}
+
+async function getAverageGuildAttendance(prisma: PrismaClient, minGP: number): Promise<number> {
+  try {
+    // Get the current month
+    const now = new Date()
+    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    // Get statistics from all guilds for the current month and minGP
+    const stats = await prisma.guildStatistics.findMany({
+      where: {
+        month: currentMonth,
+        minGP: minGP,
+      },
+      select: {
+        averageAttendance: true,
+        guildName: true
+      }
+    })
+
+    if (!stats || stats.length === 0) {
+      return 0
+    }
+
+    // Calculate the average attendance across all guilds with the same minGP
+    const totalAttendance = stats.reduce((sum: number, stat: { averageAttendance: number }) => sum + stat.averageAttendance, 0)
+    const average = totalAttendance / stats.length
+    return average
+  } catch (error) {
+    console.error('Error getting average guild attendance:', error)
+    return 0
+  }
+}
+
+async function getSimilarGuildStats(prisma: PrismaClient, guildSize: number, minGP: number, guildName: string): Promise<GuildComparison | null> {
+  try {
+    const now = new Date()
+    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    // Find a guild with similar size (±20% of current guild size)
+    const similarGuild = await prisma.guildStatistics.findFirst({
+      where: {
+        month: currentMonth,
+        minGP,
+        guildSize: {
+          gte: Math.floor(guildSize * 0.8),
+          lte: Math.ceil(guildSize * 1.2),
+        },
+        NOT: {
+          guildName: {
+            mode: 'insensitive',
+            equals: guildName
+          }
+        }
+      },
+      orderBy: {
+        killFame: 'desc' // Get the best performing similar-sized guild
+      }
+    })
+
+    return similarGuild
+  } catch (error) {
+    console.error('Error getting similar guild stats:', error)
+    return null
+  }
+}
+
+async function getBestGuildStats(prisma: PrismaClient, minGP: number): Promise<GuildComparison | null> {
+  try {
+    const now = new Date()
+    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    // Find the guild with highest kill fame
+    const bestGuild = await prisma.guildStatistics.findFirst({
+      where: {
+        month: currentMonth,
+        minGP,
+      },
+      orderBy: {
+        killFame: 'desc'
+      }
+    })
+
+    return bestGuild
+  } catch (error) {
+    console.error('Error getting best guild stats:', error)
+    return null
+  }
 } 

@@ -420,14 +420,11 @@ export default function Attendance() {
           guildName,
           playerList: processedPlayerList,
           minGP: battleType === "zvz" ? 20 : 10,
-          guildInfo:
-            guildInfo && guildInfo.type === "success" && !useCustomList
-              ? {
-                  killFame: guildInfo.statistics.totalKillFame,
-                  deathFame: guildInfo.statistics.totalDeathFame,
-                  memberCount: guildInfo.statistics.memberCount,
-                }
-              : null,
+          guildInfo: guildInfo?.type === "success" ? {
+            killFame: guildInfo.statistics.totalKillFame,
+            deathFame: guildInfo.statistics.totalDeathFame,
+            memberCount: useCustomList ? processedPlayerList.length : guildInfo.statistics.memberCount,
+          } : null,
         }),
       });
 
@@ -448,7 +445,7 @@ export default function Attendance() {
     playerNames,
     processedPlayerList,
     battleType,
-    guildInfo,
+    guildInfo
   ]);
 
   return (
