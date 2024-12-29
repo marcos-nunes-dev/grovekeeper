@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendUpdate } from "@/lib/updates";
+import { prismaSSE } from '@/lib/prisma-sse'
 
 const ALBION_API = "https://gameinfo.albiononline.com/api/gameinfo";
 
@@ -138,73 +139,61 @@ async function getCachedPlayer(playerName: string) {
 }
 
 async function updatePlayerCache(data: AlbionPlayerResponse) {
-  try {
-    // Wrap all database operations in a single transaction
-    return await prisma.$transaction(async (tx) => {
-      // Check if player exists in cache before upsert
-      const existingPlayer = await tx.playerCache.findUnique({
-        where: { playerName: data.Name.toLowerCase() },
-      });
-      const isNewPlayer = !existingPlayer;
+  const isNewPlayer = !(await prismaSSE.playerCache.findUnique({
+    where: { playerName: data.Name.toLowerCase() }
+  }))
 
-      const updatedPlayer = await tx.playerCache.upsert({
-        where: {
-          playerName: data.Name.toLowerCase(),
-        },
+  return await prismaSSE.$transaction(async (tx) => {
+    const updatedPlayer = await tx.playerCache.upsert({
+      where: { playerName: data.Name.toLowerCase() },
+      create: {
+        id: data.Id,
+        playerName: data.Name.toLowerCase(),
+        guildName: data.GuildName,
+        killFame: BigInt(Math.floor(data.KillFame)),
+        deathFame: BigInt(Math.floor(data.DeathFame)),
+        pveTotal: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
+        gatheringTotal: BigInt(Math.floor(data.LifetimeStatistics?.Gathering?.All?.Total || 0)),
+        craftingTotal: BigInt(Math.floor(data.LifetimeStatistics?.Crafting?.Total || 0))
+      },
+      update: {
+        guildName: data.GuildName,
+        killFame: BigInt(Math.floor(data.KillFame)),
+        deathFame: BigInt(Math.floor(data.DeathFame)),
+        pveTotal: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
+        gatheringTotal: BigInt(Math.floor(data.LifetimeStatistics?.Gathering?.All?.Total || 0)),
+        craftingTotal: BigInt(Math.floor(data.LifetimeStatistics?.Crafting?.Total || 0))
+      }
+    })
+
+    // Only update global stats if this is a new player
+    if (isNewPlayer) {
+      await tx.grovekeeperStatistics.upsert({
+        where: { id: 'singleton' },
         create: {
-          id: data.Id,
-          playerName: data.Name.toLowerCase(),
-          guildName: data.GuildName,
-          killFame: BigInt(Math.floor(data.KillFame)),
-          deathFame: BigInt(Math.floor(data.DeathFame)),
-          pveTotal: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
-          gatheringTotal: BigInt(Math.floor(data.LifetimeStatistics?.Gathering?.All?.Total || 0)),
-          craftingTotal: BigInt(Math.floor(data.LifetimeStatistics?.Crafting?.Total || 0)),
-          hasDeepSearch: false
+          id: 'singleton',
+          playersTracked: BigInt(1),
+          totalPvpFame: BigInt(Math.floor(data.KillFame)),
+          totalPveFame: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
+          deathsAnalyzed: BigInt(0),
+          silverCalculated: BigInt(0)
         },
         update: {
-          guildName: data.GuildName,
-          killFame: BigInt(Math.floor(data.KillFame)),
-          deathFame: BigInt(Math.floor(data.DeathFame)),
-          pveTotal: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
-          gatheringTotal: BigInt(Math.floor(data.LifetimeStatistics?.Gathering?.All?.Total || 0)),
-          craftingTotal: BigInt(Math.floor(data.LifetimeStatistics?.Crafting?.Total || 0)),
-          updatedAt: new Date()
-        }
-      });
-
-      // Only update global stats if this is a new player
-      if (isNewPlayer) {
-        await tx.grovekeeperStatistics.upsert({
-          where: { id: 'singleton' },
-          create: {
-            id: 'singleton',
-            playersTracked: BigInt(1),
-            totalPvpFame: BigInt(Math.floor(data.KillFame)),
-            totalPveFame: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
-            deathsAnalyzed: BigInt(0),
-            silverCalculated: BigInt(0)
+          playersTracked: {
+            increment: BigInt(1)
           },
-          update: {
-            playersTracked: {
-              increment: BigInt(1)
-            },
-            totalPvpFame: {
-              increment: BigInt(Math.floor(data.KillFame))
-            },
-            totalPveFame: {
-              increment: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0))
-            }
+          totalPvpFame: {
+            increment: BigInt(Math.floor(data.KillFame))
+          },
+          totalPveFame: {
+            increment: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0))
           }
-        });
-      }
+        }
+      })
+    }
 
-      return updatedPlayer;
-    });
-  } catch (error) {
-    console.error("Failed to update player cache:", error);
-    return null;
-  }
+    return updatedPlayer
+  })
 }
 
 // Helper function to fetch fresh data from Albion API

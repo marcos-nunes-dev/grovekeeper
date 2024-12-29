@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getOrCreateClientHandlers, removeClientHandler, type SSEResponse } from '@/lib/updates'
+import { prismaSSE } from '@/lib/prisma-sse'
 
 export async function GET(
   request: Request,
@@ -19,9 +20,21 @@ export async function GET(
   }
   handlers.add(handler)
 
-  // Remove handler when client disconnects
-  request.signal.addEventListener('abort', () => {
+  // Remove handler and clean up when client disconnects
+  request.signal.addEventListener('abort', async () => {
     removeClientHandler(playerName, handler)
+    
+    // If this was the last handler for this player, clean up any ongoing operations
+    const remainingHandlers = getOrCreateClientHandlers(playerName)
+    if (remainingHandlers.size === 0) {
+      try {
+        // Any cleanup specific to this player's SSE connection
+        // For example, canceling any ongoing background tasks
+        console.log(`Cleaning up SSE connection for player: ${playerName}`)
+      } catch (error) {
+        console.error('Error during SSE cleanup:', error)
+      }
+    }
   })
 
   return new NextResponse(stream.readable, {

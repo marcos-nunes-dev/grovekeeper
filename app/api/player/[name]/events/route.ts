@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { withPrisma } from '@/lib/prisma-helper'
-import { Prisma } from '@prisma/client'
+import { prismaSSE } from '@/lib/prisma-sse'
+import { Prisma, PlayerEvent } from '@prisma/client'
 
 const MURDER_LEDGER_API = 'https://murderledger.albiononline2d.com/api/players'
 const ALBION_API = "https://gameinfo.albiononline.com/api/gameinfo"
@@ -237,17 +237,6 @@ interface MurderLedgerEvent {
   }
 }
 
-interface StoredEvent {
-  id: string
-  playerId: string
-  playerName: string
-  timestamp: Date
-  eventType: string
-  eventData: Prisma.JsonValue
-  createdAt: Date
-  updatedAt: Date
-}
-
 async function fetchMurderLedgerEvents(playerName: string, skip: number = 0): Promise<MurderLedgerEvent[]> {
   const url = `${MURDER_LEDGER_API}/${playerName}/events?skip=${skip}`
   const response = await fetch(url)
@@ -260,15 +249,13 @@ async function fetchMurderLedgerEvents(playerName: string, skip: number = 0): Pr
   return data.events || []
 }
 
-async function getStoredEvents(playerName: string, limit: number, skip: number = 0): Promise<StoredEvent[]> {
-  return withPrisma(prisma =>
-    prisma.playerEvent.findMany({
-      where: { playerName: playerName.toLowerCase() },
-      orderBy: { timestamp: 'desc' },
-      take: limit,
-      skip: skip
-    })
-  )
+async function getStoredEvents(playerName: string, limit: number, skip: number = 0): Promise<PlayerEvent[]> {
+  return prismaSSE.playerEvent.findMany({
+    where: { playerName: playerName.toLowerCase() },
+    orderBy: { timestamp: 'desc' },
+    take: limit,
+    skip: skip
+  })
 }
 
 async function storeNewEvents(events: MurderLedgerEvent[], playerName: string) {
@@ -286,12 +273,10 @@ async function storeNewEvents(events: MurderLedgerEvent[], playerName: string) {
     eventData: event as unknown as Prisma.InputJsonValue
   }))
 
-  return withPrisma(prisma =>
-    prisma.playerEvent.createMany({
-      data: eventsToCreate,
-      skipDuplicates: true
-    })
-  )
+  return prismaSSE.playerEvent.createMany({
+    data: eventsToCreate,
+    skipDuplicates: true
+  })
 }
 
 export async function GET(
@@ -354,11 +339,9 @@ export async function GET(
     // If we're loading more and don't have enough stored events
     if (storedEvents.length < limit) {
       // Get the total count of stored events before the current skip point
-      const totalStoredBefore = await withPrisma(prisma =>
-        prisma.playerEvent.count({
-          where: { playerName: playerName.toLowerCase() }
-        })
-      );
+      const totalStoredBefore = await prismaSSE.playerEvent.count({
+        where: { playerName: playerName.toLowerCase() }
+      });
 
       // Only fetch from Murder Ledger if we're near the end of our stored data
       if (skip >= totalStoredBefore - limit) {
@@ -385,11 +368,9 @@ export async function GET(
     return NextResponse.json({
       data: storedEvents.map(event => event.eventData),
       newEventsCount: 0,
-      totalEvents: await withPrisma(prisma =>
-        prisma.playerEvent.count({
-          where: { playerName: playerName.toLowerCase() }
-        })
-      ),
+      totalEvents: await prismaSSE.playerEvent.count({
+        where: { playerName: playerName.toLowerCase() }
+      }),
       isCheckingNewEvents: false
     });
 
