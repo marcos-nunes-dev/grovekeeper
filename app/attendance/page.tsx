@@ -6,25 +6,18 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { HelpCircle, Search } from 'lucide-react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { Switch } from "@/components/ui/switch"
+import {
+  Card,
+  CardContent,
+} from "@/components/ui/card"
 import AttendanceResult, { type AttendanceResult as AttendanceResultType } from '@/components/attendance-result'
 import GuildInfo from '@/components/guild-info'
 import PageHero from '@/components/page-hero'
 import { useDebounce } from '@/lib/hooks/use-debounce'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { HelpCircle, Search } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useApiHealth } from '@/lib/hooks/useApiHealth'
 
 type BattleType = 'zvz' | 'all'
@@ -74,6 +67,8 @@ export default function Attendance() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [guildMembers, setGuildMembers] = useState<string[]>([])
+  const [suggestions, setSuggestions] = useState<GuildSearchResult[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const debouncedGuildName = useDebounce(guildName, 300)
   const [isPending, startTransition] = useTransition()
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -87,6 +82,7 @@ export default function Attendance() {
   const handleGuildNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value
     setGuildName(newValue)
+    setShowSuggestions(true)
     // Reset UI immediately when typing
     if (guildInfo || guildMembers.length > 0 || result) {
       setGuildInfo(null)
@@ -225,9 +221,76 @@ export default function Attendance() {
   // Effect to search guild when debounced name changes
   useEffect(() => {
     if (debouncedGuildName) {
-      searchGuild(debouncedGuildName)
+      const fetchSuggestions = async () => {
+        try {
+          setIsSearching(true)
+          
+          // Cancel previous request if exists
+          if (abortControllerRef.current) {
+            abortControllerRef.current.abort()
+          }
+          abortControllerRef.current = new AbortController()
+
+          const response = await fetch(
+            `/api/guilds/search?q=${encodeURIComponent(debouncedGuildName)}`,
+            { signal: abortControllerRef.current.signal }
+          )
+
+          if (!response.ok) {
+            if (response.status === 429) { // Rate limit
+              const retryAfter = response.headers.get('Retry-After') || '5'
+              if (retryTimeoutRef.current) {
+                clearTimeout(retryTimeoutRef.current)
+              }
+              retryTimeoutRef.current = setTimeout(() => {
+                if (retryCountRef.current < MAX_RETRIES) {
+                  retryCountRef.current++
+                  fetchSuggestions()
+                }
+              }, parseInt(retryAfter) * 1000)
+              return
+            }
+            throw new Error('Failed to search guild')
+          }
+
+          const guilds: GuildSearchResult[] = await response.json()
+          setSuggestions(guilds)
+          
+          // Cache the results
+          searchCache.current.set(debouncedGuildName.toLowerCase(), guilds)
+
+          const exactMatch = guilds.find(g => g.Name.toLowerCase() === debouncedGuildName.toLowerCase())
+          if (exactMatch) {
+            await handleExactMatch(exactMatch)
+          }
+
+          // Reset retry count on success
+          retryCountRef.current = 0
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            if (error.name === 'AbortError') return
+            console.error('Error searching guild:', error)
+            setGuildInfo({
+              type: 'error',
+              error: 'Failed to search guild. Please try again.'
+            })
+          }
+        } finally {
+          setIsSearching(false)
+        }
+      }
+
+      fetchSuggestions()
+    } else {
+      setSuggestions([])
     }
-  }, [debouncedGuildName, searchGuild])
+  }, [debouncedGuildName, handleExactMatch])
+
+  const handleSuggestionClick = useCallback((guild: GuildSearchResult) => {
+    setGuildName(guild.Name)
+    setShowSuggestions(false)
+    handleExactMatch(guild)
+  }, [handleExactMatch])
 
   // Clean up on unmount
   useEffect(() => {
@@ -280,7 +343,7 @@ export default function Attendance() {
 
   return (
     <div>
-      <PageHero 
+      <PageHero
         title="Guild Attendance Tracker"
         subtitle="Track and analyze your guild members' participation and performance"
         stats={[
@@ -303,14 +366,44 @@ export default function Attendance() {
                   <SelectItem value="all">ZvZ and Small</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="flex items-center gap-2 flex-1">
+              <div className="flex items-center gap-2 flex-1 relative">
                 <Search className="w-5 h-5 text-zinc-400" />
                 <Input
                   value={guildName}
                   onChange={handleGuildNameChange}
                   placeholder="Enter guild name"
                   className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => {
+                    // Delay hiding suggestions to allow click events
+                    setTimeout(() => setShowSuggestions(false), 200)
+                  }}
                 />
+                {showSuggestions && suggestions.length > 0 && (
+                  <Card className="absolute w-full mt-1 top-full z-50 bg-[#161B22] border-zinc-800">
+                    <CardContent className="p-0">
+                      <div className="max-h-[300px] overflow-y-auto">
+                        {suggestions.map((guild) => (
+                          <button
+                            key={guild.Id}
+                            className="w-full px-4 py-2 text-left hover:bg-zinc-800/50 transition-colors"
+                            onClick={() => handleSuggestionClick(guild)}
+                          >
+                            <div>{guild.Name}</div>
+                            {guild.AllianceName && (
+                              <div className="text-sm text-muted-foreground">
+                                Alliance: {guild.AllianceName}
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="p-2 text-xs text-muted-foreground border-t border-zinc-800">
+                        Note: Albion API responses may be slow. Please be patient.
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>

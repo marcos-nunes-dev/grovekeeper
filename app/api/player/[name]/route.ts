@@ -49,29 +49,38 @@ async function findPlayer(playerName: string): Promise<string> {
     throw new Error(`Search failed: ${response.status}`);
   }
 
-  const data = (await response.json()) as AlbionSearchResponse;
-  const player = data.players?.find(
-    (p) => p.Name.toLowerCase() === playerName.toLowerCase()
-  );
+  try {
+    const data = (await response.json()) as AlbionSearchResponse;
+    const player = data.players?.find(
+      (p) => p.Name.toLowerCase() === playerName.toLowerCase()
+    );
 
-  if (!player) {
-    throw new Error("Player not found");
-  }
+    if (!player) {
+      throw new Error("Player not found");
+    }
 
-  // Update the cache with the correct player ID
-  const cachedPlayer = await prisma.playerCache.findUnique({
-    where: { playerName: playerName.toLowerCase() },
-  });
+    // Update the cache with the correct player ID using a transaction
+    await prisma.$transaction(async (tx) => {
+      const cachedPlayer = await tx.playerCache.findUnique({
+        where: { playerName: playerName.toLowerCase() },
+      });
 
-  if (cachedPlayer && cachedPlayer.id !== player.Id) {
-    // If the cached ID is different, update it
-    await prisma.playerCache.update({
-      where: { playerName: playerName.toLowerCase() },
-      data: { id: player.Id },
+      if (cachedPlayer && cachedPlayer.id !== player.Id) {
+        // If the cached ID is different, update it
+        await tx.playerCache.update({
+          where: { playerName: playerName.toLowerCase() },
+          data: { id: player.Id },
+        });
+      }
     });
-  }
 
-  return player.Id;
+    return player.Id;
+  } catch (error) {
+    if (error instanceof Error && error.message === "Player not found") {
+      throw error;
+    }
+    throw new Error("Failed to parse Albion API response. Please try again later.");
+  }
 }
 
 async function fetchPlayerData(
@@ -90,7 +99,11 @@ async function fetchPlayerData(
     throw new Error(`Failed to fetch player details: ${response.status}`);
   }
 
-  return response.json();
+  try {
+    return await response.json();
+  } catch {
+    throw new Error("Failed to parse Albion API response. Please try again later.");
+  }
 }
 
 async function formatPlayerData(data: AlbionPlayerResponse, region: string) {
@@ -112,8 +125,11 @@ async function formatPlayerData(data: AlbionPlayerResponse, region: string) {
 
 async function getCachedPlayer(playerName: string) {
   try {
-    return await prisma.playerCache.findUnique({
-      where: { playerName: playerName.toLowerCase() },
+    // Create a new Prisma transaction for this operation
+    return await prisma.$transaction(async (tx) => {
+      return await tx.playerCache.findUnique({
+        where: { playerName: playerName.toLowerCase() },
+      });
     });
   } catch (error) {
     console.error("Failed to get cached player:", error);
@@ -123,63 +139,68 @@ async function getCachedPlayer(playerName: string) {
 
 async function updatePlayerCache(data: AlbionPlayerResponse) {
   try {
-    // Check if player exists in cache before upsert
-    const existingPlayer = await getCachedPlayer(data.Name);
-    const isNewPlayer = !existingPlayer;
+    // Wrap all database operations in a single transaction
+    return await prisma.$transaction(async (tx) => {
+      // Check if player exists in cache before upsert
+      const existingPlayer = await tx.playerCache.findUnique({
+        where: { playerName: data.Name.toLowerCase() },
+      });
+      const isNewPlayer = !existingPlayer;
 
-    const updatedPlayer = await prisma.playerCache.upsert({
-      where: {
-        playerName: data.Name.toLowerCase(),
-      },
-      create: {
-        id: data.Id,
-        playerName: data.Name.toLowerCase(),
-        guildName: data.GuildName,
-        killFame: BigInt(Math.floor(data.KillFame)),
-        deathFame: BigInt(Math.floor(data.DeathFame)),
-        pveTotal: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
-        gatheringTotal: BigInt(Math.floor(data.LifetimeStatistics?.Gathering?.All?.Total || 0)),
-        craftingTotal: BigInt(Math.floor(data.LifetimeStatistics?.Crafting?.Total || 0)),
-        hasDeepSearch: false
-      },
-      update: {
-        guildName: data.GuildName,
-        killFame: BigInt(Math.floor(data.KillFame)),
-        deathFame: BigInt(Math.floor(data.DeathFame)),
-        pveTotal: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
-        gatheringTotal: BigInt(Math.floor(data.LifetimeStatistics?.Gathering?.All?.Total || 0)),
-        craftingTotal: BigInt(Math.floor(data.LifetimeStatistics?.Crafting?.Total || 0)),
-        updatedAt: new Date()
-      }
-    });
-
-    // Only update global stats if this is a new player
-    if (isNewPlayer) {
-      await prisma.grovekeeperStatistics.upsert({
-        where: { id: 'singleton' },
+      const updatedPlayer = await tx.playerCache.upsert({
+        where: {
+          playerName: data.Name.toLowerCase(),
+        },
         create: {
-          id: 'singleton',
-          playersTracked: BigInt(1),
-          totalPvpFame: BigInt(Math.floor(data.KillFame)),
-          totalPveFame: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
-          deathsAnalyzed: BigInt(0),
-          silverCalculated: BigInt(0)
+          id: data.Id,
+          playerName: data.Name.toLowerCase(),
+          guildName: data.GuildName,
+          killFame: BigInt(Math.floor(data.KillFame)),
+          deathFame: BigInt(Math.floor(data.DeathFame)),
+          pveTotal: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
+          gatheringTotal: BigInt(Math.floor(data.LifetimeStatistics?.Gathering?.All?.Total || 0)),
+          craftingTotal: BigInt(Math.floor(data.LifetimeStatistics?.Crafting?.Total || 0)),
+          hasDeepSearch: false
         },
         update: {
-          playersTracked: {
-            increment: BigInt(1)
-          },
-          totalPvpFame: {
-            increment: BigInt(Math.floor(data.KillFame))
-          },
-          totalPveFame: {
-            increment: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0))
-          }
+          guildName: data.GuildName,
+          killFame: BigInt(Math.floor(data.KillFame)),
+          deathFame: BigInt(Math.floor(data.DeathFame)),
+          pveTotal: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
+          gatheringTotal: BigInt(Math.floor(data.LifetimeStatistics?.Gathering?.All?.Total || 0)),
+          craftingTotal: BigInt(Math.floor(data.LifetimeStatistics?.Crafting?.Total || 0)),
+          updatedAt: new Date()
         }
       });
-    }
 
-    return updatedPlayer;
+      // Only update global stats if this is a new player
+      if (isNewPlayer) {
+        await tx.grovekeeperStatistics.upsert({
+          where: { id: 'singleton' },
+          create: {
+            id: 'singleton',
+            playersTracked: BigInt(1),
+            totalPvpFame: BigInt(Math.floor(data.KillFame)),
+            totalPveFame: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
+            deathsAnalyzed: BigInt(0),
+            silverCalculated: BigInt(0)
+          },
+          update: {
+            playersTracked: {
+              increment: BigInt(1)
+            },
+            totalPvpFame: {
+              increment: BigInt(Math.floor(data.KillFame))
+            },
+            totalPveFame: {
+              increment: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0))
+            }
+          }
+        });
+      }
+
+      return updatedPlayer;
+    });
   } catch (error) {
     console.error("Failed to update player cache:", error);
     return null;

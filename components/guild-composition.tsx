@@ -1,0 +1,1 @@
+// https://gameinfo.albiononline.com/api/gameinfo/events/1135489512?activespells=true&activespell=true&as=true

@@ -231,7 +231,12 @@ export default function GroupRegearResultDisplay({ result }: GroupRegearResultPr
                     height={24}
                     className="w-6 h-6 object-contain"
                   />
-                  Tomes of Insight
+                  <div className="flex flex-col">
+                    <span>Tomes of Insight</span>
+                    {equivalentPrices?.T4_SKILLBOOK_STANDARD ? (
+                      <span className="text-xs text-zinc-500">{formatPrice(equivalentPrices.T4_SKILLBOOK_STANDARD)} silver each</span>
+                    ) : null}
+                  </div>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setPriceDisplay('TREASURE_DECORATIVE_RARITY1')} className="gap-2">
                   <Image
@@ -241,7 +246,12 @@ export default function GroupRegearResultDisplay({ result }: GroupRegearResultPr
                     height={24}
                     className="w-6 h-6 object-contain"
                   />
-                  Toys
+                  <div className="flex flex-col">
+                    <span>Toys</span>
+                    {equivalentPrices?.TREASURE_DECORATIVE_RARITY1 ? (
+                      <span className="text-xs text-zinc-500">{formatPrice(equivalentPrices.TREASURE_DECORATIVE_RARITY1)} silver each</span>
+                    ) : null}
+                  </div>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setPriceDisplay('UNIQUE_GVGTOKEN_GENERIC')} className="gap-2">
                   <Image
@@ -251,7 +261,12 @@ export default function GroupRegearResultDisplay({ result }: GroupRegearResultPr
                     height={24}
                     className="w-6 h-6 object-contain"
                   />
-                  Siphoned Energy
+                  <div className="flex flex-col">
+                    <span>Siphoned Energy</span>
+                    {equivalentPrices?.UNIQUE_GVGTOKEN_GENERIC ? (
+                      <span className="text-xs text-zinc-500">{formatPrice(equivalentPrices.UNIQUE_GVGTOKEN_GENERIC)} silver each</span>
+                    ) : null}
+                  </div>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
