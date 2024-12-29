@@ -119,6 +119,7 @@ export default function Attendance() {
 
     return playerNames
       .split("\n")
+      .filter(line => !line.includes("Character Name") && !line.includes("Last Seen") && !line.includes("Roles")) // Skip header row
       .map((line) => {
         const match = line.match(/"([^"]+)"/);
         return match ? match[1] : null;
@@ -129,7 +130,8 @@ export default function Attendance() {
   // Memoize button disabled state
   const isCalculateDisabled = useMemo(() => {
     if (useCustomList) {
-      return isLoading || !guildName || !playerNames.trim() || !guildInfo;
+      // For custom list, we only need the guild name and player names
+      return isLoading || !guildName || !playerNames.trim() || processedPlayerList.length === 0;
     }
     return isLoading || isSearching || !guildInfo || !guildMembers.length;
   }, [
@@ -140,6 +142,7 @@ export default function Attendance() {
     useCustomList,
     guildName,
     playerNames,
+    processedPlayerList.length
   ]);
 
   const handleExactMatch = useCallback(
