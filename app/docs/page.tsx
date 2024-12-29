@@ -2,11 +2,12 @@
 
 import { motion } from 'framer-motion'
 import { ChevronDown, Users2, Sparkles, HelpCircle, SearchIcon, Shield, Swords, HandHelping, Skull, Clock, Info, ExternalLink } from 'lucide-react'
-import RegearResult from '@/components/regear-result'
+import RegearResultComponent from '@/components/regear-result'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import type { RegearResult } from '@/lib/types/regear'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,25 +20,27 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import Image from "next/image"
 
 // Mock data for examples
-const MOCK_REGEAR_RESULT = {
+const MOCK_REGEAR_RESULT: RegearResult = {
   equipped: [
     {
-      id: 'T8_HEAD_CLOTH_SET3',
-      name: 'Scholar Cowl',
-      value: 450000,
-      formattedValue: '450,000',
+      id: 'T4_HEAD_LEATHER_SET1',
+      name: 'Mercenary Hood',
+      value: 25000,
+      formattedValue: '25K',
       quality: 1,
       count: 1,
-      isReliablePrice: true
+      isReliablePrice: true,
+      priceHistory: []
     },
     {
-      id: 'T8_ARMOR_CLOTH_SET3',
-      name: 'Scholar Robe',
-      value: 550000,
-      formattedValue: '550,000',
+      id: 'T4_ARMOR_LEATHER_SET1',
+      name: 'Mercenary Jacket',
+      value: 35000,
+      formattedValue: '35K',
       quality: 1,
       count: 1,
-      isReliablePrice: true
+      isReliablePrice: true,
+      priceHistory: []
     }
   ],
   bag: [
@@ -45,15 +48,16 @@ const MOCK_REGEAR_RESULT = {
       id: 'T4_POTION_HEAL',
       name: 'Minor Healing Potion',
       value: 1000,
-      formattedValue: '1,000',
+      formattedValue: '1K',
       quality: 1,
       count: 3,
-      isReliablePrice: true
+      isReliablePrice: true,
+      priceHistory: []
     }
   ],
   total: {
-    value: 1003000,
-    formatted: '1,003,000'
+    value: 63000,
+    formatted: '63K'
   }
 }
 
@@ -248,7 +252,7 @@ export default function DocsPage() {
                   </p>
                   
                   <div className="border border-zinc-800 rounded-lg overflow-hidden">
-                    <RegearResult 
+                    <RegearResultComponent 
                       result={MOCK_REGEAR_RESULT}
                       compact={true}
                     />

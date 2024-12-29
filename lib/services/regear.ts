@@ -25,7 +25,7 @@ export async function getKillboardData(killboardUrl: string): Promise<RegearResu
       quality: item!.Quality,
       count: item!.Count,
       isReliablePrice: false,
-      priceHistory: []
+      priceHistory: [] as Array<{ timestamp: string; price: number }>
     }))
 
   // Process inventory items
@@ -39,7 +39,7 @@ export async function getKillboardData(killboardUrl: string): Promise<RegearResu
       quality: item.Quality,
       count: item.Count,
       isReliablePrice: false,
-      priceHistory: []
+      priceHistory: [] as Array<{ timestamp: string; price: number }>
     }))
 
   // Fetch prices for all items from our API route
