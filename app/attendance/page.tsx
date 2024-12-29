@@ -69,7 +69,7 @@ export default function Attendance() {
   const [guildMembers, setGuildMembers] = useState<string[]>([])
   const [suggestions, setSuggestions] = useState<GuildSearchResult[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const debouncedGuildName = useDebounce(guildName, 300)
+  const debouncedGuildName = useDebounce(guildName, 800)
   const [isPending, startTransition] = useTransition()
   const abortControllerRef = useRef<AbortController | null>(null)
   const searchCache = useRef<Map<string, GuildSearchResult[]>>(new Map())
@@ -106,20 +106,55 @@ export default function Attendance() {
 
   // Memoize button disabled state
   const isCalculateDisabled = useMemo(() => {
-    return (
-      isLoading || 
-      isSearching || 
-      !guildInfo || 
-      !guildMembers.length || 
-      (useCustomList && !playerNames.trim())
-    )
-  }, [isLoading, isSearching, guildInfo, guildMembers.length, useCustomList, playerNames])
+    if (useCustomList) {
+      return isLoading || !guildName || !playerNames.trim()
+    }
+    return isLoading || isSearching || !guildInfo || !guildMembers.length
+  }, [isLoading, isSearching, guildInfo, guildMembers.length, useCustomList, guildName, playerNames])
 
   const handleExactMatch = useCallback(async (guild: GuildSearchResult) => {
+    // Skip fetching members if using custom list
+    if (useCustomList) {
+      setGuildInfo({
+        type: 'success',
+        Name: guild.Name,
+        AllianceName: guild.AllianceName,
+        statistics: {
+          memberCount: 0,
+          totalKillFame: 0,
+          totalDeathFame: 0,
+          totalPvEFame: 0,
+          totalGatheringFame: 0,
+          totalCraftingFame: 0,
+          averageKillFame: 0,
+          averageDeathFame: 0,
+          averagePvEFame: 0
+        }
+      })
+      return
+    }
+
     try {
-      const detailsResponse = await fetch(`/api/guilds/${guild.Id}/members`)
+      setIsSearching(true)
+      const controller = new AbortController()
+      // Set a timeout of 35 seconds
+      const timeoutId = setTimeout(() => controller.abort(), 35000)
+
+      const detailsResponse = await fetch(`/api/guilds/${guild.Id}/members`, {
+        signal: controller.signal
+      })
+
+      clearTimeout(timeoutId)
+
       if (!detailsResponse.ok) {
-        throw new Error('Failed to fetch guild details')
+        if (detailsResponse.status === 504) {
+          setGuildInfo({
+            type: 'error',
+            error: 'The request timed out. The Albion API is experiencing high latency. Please try again.'
+          })
+          return
+        }
+        throw new Error(`Failed to fetch guild details: ${detailsResponse.status}`)
       }
 
       const details = await detailsResponse.json()
@@ -135,12 +170,24 @@ export default function Attendance() {
       })
     } catch (error) {
       console.error('Error fetching guild details:', error)
+      let errorMessage = 'Failed to fetch guild details. Please try again.'
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = 'The request timed out. The Albion API is experiencing high latency. Please try again.'
+        } else if (error.message.includes('504')) {
+          errorMessage = 'The request timed out. The Albion API is experiencing high latency. Please try again.'
+        }
+      }
+
       setGuildInfo({
         type: 'error',
-        error: 'Failed to fetch guild details. Please try again.'
+        error: errorMessage
       })
+    } finally {
+      setIsSearching(false)
     }
-  }, [])
+  }, [startTransition, useCustomList])
 
   const searchGuild = useCallback(async (name: string) => {
     if (!name) return
@@ -218,7 +265,7 @@ export default function Attendance() {
     }
   }, [handleExactMatch])
 
-  // Effect to search guild when debounced name changes
+  // Effect to fetch only suggestions when typing
   useEffect(() => {
     if (debouncedGuildName) {
       const fetchSuggestions = async () => {
@@ -259,21 +306,12 @@ export default function Attendance() {
           // Cache the results
           searchCache.current.set(debouncedGuildName.toLowerCase(), guilds)
 
-          const exactMatch = guilds.find(g => g.Name.toLowerCase() === debouncedGuildName.toLowerCase())
-          if (exactMatch) {
-            await handleExactMatch(exactMatch)
-          }
-
           // Reset retry count on success
           retryCountRef.current = 0
         } catch (error: unknown) {
           if (error instanceof Error) {
             if (error.name === 'AbortError') return
             console.error('Error searching guild:', error)
-            setGuildInfo({
-              type: 'error',
-              error: 'Failed to search guild. Please try again.'
-            })
           }
         } finally {
           setIsSearching(false)
@@ -284,13 +322,28 @@ export default function Attendance() {
     } else {
       setSuggestions([])
     }
-  }, [debouncedGuildName, handleExactMatch])
+  }, [debouncedGuildName])
 
   const handleSuggestionClick = useCallback((guild: GuildSearchResult) => {
     setGuildName(guild.Name)
     setShowSuggestions(false)
     handleExactMatch(guild)
   }, [handleExactMatch])
+
+  // Handle form submission for manual entry
+  const handleSubmit = useCallback((e: React.FormEvent) => {
+    e.preventDefault()
+    if (!guildName) return
+
+    const cachedResults = searchCache.current.get(guildName.toLowerCase())
+    const exactMatch = cachedResults?.find(g => g.Name.toLowerCase() === guildName.toLowerCase())
+    
+    if (exactMatch) {
+      handleExactMatch(exactMatch)
+    } else {
+      searchGuild(guildName)
+    }
+  }, [guildName, searchGuild, handleExactMatch])
 
   // Clean up on unmount
   useEffect(() => {
@@ -320,7 +373,7 @@ export default function Attendance() {
           guildName,
           playerList: processedPlayerList,
           minGP: battleType === 'zvz' ? 20 : 10,
-          guildInfo: guildInfo && guildInfo.type === 'success' ? {
+          guildInfo: guildInfo && guildInfo.type === 'success' && !useCustomList ? {
             killFame: guildInfo.statistics.totalKillFame,
             deathFame: guildInfo.statistics.totalDeathFame,
             memberCount: guildInfo.statistics.memberCount
@@ -352,7 +405,7 @@ export default function Attendance() {
         ]}
       >
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-zinc-800 p-6 space-y-4">
-          <div className="space-y-2">
+          <form onSubmit={handleSubmit} className="space-y-2">
             <div className="flex items-center gap-4">
               <Select
                 value={battleType}
@@ -378,31 +431,40 @@ export default function Attendance() {
                     // Delay hiding suggestions to allow click events
                     setTimeout(() => setShowSuggestions(false), 200)
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleSubmit(e)
+                    }
+                  }}
                 />
                 {showSuggestions && suggestions.length > 0 && (
-                  <Card className="absolute w-full mt-1 top-full z-50 bg-[#161B22] border-zinc-800">
-                    <CardContent className="p-0">
-                      <div className="max-h-[300px] overflow-y-auto">
-                        {suggestions.map((guild) => (
-                          <button
-                            key={guild.Id}
-                            className="w-full px-4 py-2 text-left hover:bg-zinc-800/50 transition-colors"
-                            onClick={() => handleSuggestionClick(guild)}
-                          >
-                            <div>{guild.Name}</div>
-                            {guild.AllianceName && (
-                              <div className="text-sm text-muted-foreground">
-                                Alliance: {guild.AllianceName}
-                              </div>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="p-2 text-xs text-muted-foreground border-t border-zinc-800">
-                        Note: Albion API responses may be slow. Please be patient.
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-[100]">
+                    <Card className="w-full bg-[#161B22] border-zinc-800 shadow-lg">
+                      <CardContent className="p-0">
+                        <div className="max-h-[300px] overflow-y-auto">
+                          {suggestions.map((guild) => (
+                            <button
+                              key={guild.Id}
+                              className="w-full px-4 py-2 text-left hover:bg-zinc-800/50 transition-colors"
+                              onClick={() => handleSuggestionClick(guild)}
+                              type="button"
+                            >
+                              <div className="font-medium">{guild.Name}</div>
+                              {guild.AllianceName && (
+                                <div className="text-sm text-zinc-400">
+                                  Alliance: {guild.AllianceName}
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="p-2 text-xs text-zinc-500 border-t border-zinc-800">
+                          Note: Albion API responses may be slow. Please be patient.
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 )}
                 <TooltipProvider>
                   <Tooltip>
@@ -424,21 +486,17 @@ export default function Attendance() {
                 </TooltipProvider>
               </div>
             </div>
-            <div className="h-px bg-zinc-800" />
-            {guildInfo?.type === 'error' && (
-              <div className="text-sm text-yellow-500 mt-2">
-                {guildInfo.error}
-              </div>
-            )}
-          </div>
-
+          </form>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Switch
                 checked={useCustomList}
                 onCheckedChange={setUseCustomList}
               />
-              <Label className="text-sm text-zinc-400">Use custom member list</Label>
+              <div className="flex flex-col">
+                <Label className="text-sm text-zinc-400">Use custom member list</Label>
+                <small className="text-xs text-zinc-400">Good option when Guild members API is down</small>
+              </div>
             </div>
             <TooltipProvider>
               <Tooltip>
@@ -478,7 +536,7 @@ export default function Attendance() {
       </PageHero>
 
       <div className="container mx-auto px-4">
-        <GuildInfo info={guildInfo} isLoading={isSearching || isPending} />
+        {!useCustomList && <GuildInfo info={guildInfo} isLoading={isSearching || isPending} />}
         {result && <AttendanceResult result={result} />}
       </div>
     </div>
