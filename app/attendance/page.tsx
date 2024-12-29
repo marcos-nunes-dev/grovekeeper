@@ -129,7 +129,7 @@ export default function Attendance() {
   // Memoize button disabled state
   const isCalculateDisabled = useMemo(() => {
     if (useCustomList) {
-      return isLoading || !guildName || !playerNames.trim();
+      return isLoading || !guildName || !playerNames.trim() || !guildInfo;
     }
     return isLoading || isSearching || !guildInfo || !guildMembers.length;
   }, [
@@ -144,27 +144,6 @@ export default function Attendance() {
 
   const handleExactMatch = useCallback(
     async (guild: GuildSearchResult) => {
-      // Skip fetching members if using custom list
-      if (useCustomList) {
-        setGuildInfo({
-          type: "success",
-          Name: guild.Name,
-          AllianceName: guild.AllianceName,
-          statistics: {
-            memberCount: 0,
-            totalKillFame: 0,
-            totalDeathFame: 0,
-            totalPvEFame: 0,
-            totalGatheringFame: 0,
-            totalCraftingFame: 0,
-            averageKillFame: 0,
-            averageDeathFame: 0,
-            averagePvEFame: 0,
-          },
-        });
-        return;
-      }
-
       try {
         setIsSearching(true);
         setError(null); // Clear error before new request
@@ -199,7 +178,10 @@ export default function Attendance() {
             AllianceName: guild.AllianceName,
             statistics: details.statistics,
           });
-          setGuildMembers(details.members.map((m: { Name: string }) => m.Name));
+          // Only set guild members if not using custom list
+          if (!useCustomList) {
+            setGuildMembers(details.members.map((m: { Name: string }) => m.Name));
+          }
         });
       } catch (error) {
         console.error("Error fetching guild details:", error);
