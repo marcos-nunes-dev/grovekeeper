@@ -59,7 +59,7 @@ interface GuildComparison {
 async function fetchPlayerData(guildName: string, playerList: string[], minGP: number): Promise<PlayerData[]> {
   // Add timeout to the fetch request
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+  const timeout = setTimeout(() => controller.abort(), 60000); // 30 second timeout
 
   try {
     const response = await fetch(

@@ -149,7 +149,7 @@ export default function Attendance() {
         setError(null); // Clear error before new request
         const controller = new AbortController();
         // Set a timeout of 35 seconds
-        const timeoutId = setTimeout(() => controller.abort(), 35000);
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
 
         const detailsResponse = await fetch(`/api/guilds/${guild.Id}/members`, {
           signal: controller.signal,

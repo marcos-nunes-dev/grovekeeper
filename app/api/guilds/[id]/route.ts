@@ -7,7 +7,7 @@ export async function GET(
   let timeout: NodeJS.Timeout | undefined;
   try {
     const controller = new AbortController();
-    timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    timeout = setTimeout(() => controller.abort(), 60000); // 30 second timeout
 
     try {
       const response = await fetch(

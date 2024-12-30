@@ -48,7 +48,7 @@ export async function GET(
   try {
     // Add timeout to the fetch request
     const controller = new AbortController();
-    timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    timeout = setTimeout(() => controller.abort(), 60000); // 30 second timeout
 
     const response = await fetch(
       `https://gameinfo.albiononline.com/api/gameinfo/guilds/${params.id}/members`,
