@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
+const TIMEOUT = process.env.VERCEL ? 14000 : 60000 // 14s for Vercel Pro, 60s for local
+
 export async function GET(request: Request) {
   let timeout: NodeJS.Timeout | undefined;
   try {
@@ -16,7 +18,7 @@ export async function GET(request: Request) {
     }
 
     const controller = new AbortController();
-    timeout = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+    timeout = setTimeout(() => controller.abort(), TIMEOUT);
 
     try {
       const response = await fetch(
@@ -43,7 +45,13 @@ export async function GET(request: Request) {
       }
 
       const data = await response.json()
-      return NextResponse.json(data.guilds)
+      const result = {
+        guilds: data.guilds,
+        ...(process.env.VERCEL && {
+          warning: 'This API has a 15-second timeout limit on Vercel deployment. For complex searches that might take longer, try breaking down your search into more specific terms.'
+        })
+      }
+      return NextResponse.json(result)
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         return NextResponse.json(
