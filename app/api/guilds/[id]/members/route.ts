@@ -44,13 +44,29 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  let timeout: NodeJS.Timeout | undefined;
   try {
+    // Add timeout to the fetch request
+    const controller = new AbortController();
+    timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
     const response = await fetch(
       `https://gameinfo.albiononline.com/api/gameinfo/guilds/${params.id}/members`,
-      { cache: 'no-store' }
+      { 
+        cache: 'no-store',
+        signal: controller.signal
+      }
     )
 
+    clearTimeout(timeout);
+
     if (!response.ok) {
+      if (response.status === 504) {
+        return NextResponse.json(
+          { error: 'The request timed out. The Albion API is experiencing high latency. Please try again.' },
+          { status: 504 }
+        )
+      }
       return NextResponse.json(
         { error: 'Failed to fetch guild members data' },
         { status: response.status }
@@ -82,9 +98,17 @@ export async function GET(
     })
   } catch (error) {
     console.error('Error fetching guild members:', error)
+    if (error instanceof Error && error.name === 'AbortError') {
+      return NextResponse.json(
+        { error: 'Request timed out while fetching guild members' },
+        { status: 504 }
+      )
+    }
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
+  } finally {
+    clearTimeout(timeout);
   }
 } 
