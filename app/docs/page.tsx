@@ -77,12 +77,10 @@ const DOCS_SECTIONS = [
     id: 'attendance',
     title: 'Attendance',
     subsections: [
-      { id: 'tracking-features', title: 'Tracking Features' },
-      { id: 'guild-selection', title: 'Guild Selection' },
-      { id: 'performance-analysis', title: 'Performance Analysis' },
-      { id: 'results-rankings', title: 'Results & Rankings' },
-      { id: 'performance-reports', title: 'Performance Reports' },
-      { id: 'guild-comparison', title: 'Guild Comparison' }
+      { id: 'tracking-features', title: 'Core Features' },
+      { id: 'tier-system', title: 'Tier System' },
+      { id: 'tracking', title: 'Tracking Features' },
+      { id: 'reports', title: 'Performance Reports' }
     ]
   },
   {
@@ -172,7 +170,7 @@ export default function DocsPage() {
               </div>
 
               {/* Core Features */}
-              <div id="core-features" className="space-y-6">
+              <div id="tracking-features" className="space-y-6">
                 <h3 className="text-2xl font-semibold">Core Features</h3>
                 <ul className="list-disc list-inside space-y-3 text-zinc-400 text-lg">
                   <li>Individual and group death analysis</li>
@@ -542,7 +540,133 @@ export default function DocsPage() {
                 </p>
               </div>
 
-              {/* Core Features */}
+              {/* Tier System */}
+              <div id="tier-system" className="space-y-6">
+                <h3 className="text-2xl font-semibold">Tier System</h3>
+                <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-zinc-800 p-8 space-y-6">
+                  <div className="space-y-4">
+                    <p className="text-lg text-zinc-400">
+                      Players are assigned tiers (S, A, B, C) based on a comprehensive scoring system that considers multiple factors weighted differently for each role.
+                    </p>
+
+                    <div className="space-y-6">
+                      {/* Scoring Factors */}
+                      <div>
+                        <h4 className="text-xl font-medium mb-3">Scoring Factors</h4>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="bg-white/5 p-4 rounded">
+                            <h5 className="font-medium mb-2">Attendance Score (0-100)</h5>
+                            <p className="text-sm text-zinc-400">Based on participation relative to global average attendance. Scores above average are capped at 100.</p>
+                          </div>
+                          <div className="bg-white/5 p-4 rounded">
+                            <h5 className="font-medium mb-2">Performance Score (0-100)</h5>
+                            <p className="text-sm text-zinc-400">Calculated relative to similar and best guilds, considering damage/healing based on role.</p>
+                          </div>
+                          <div className="bg-white/5 p-4 rounded">
+                            <h5 className="font-medium mb-2">KDA Score (0-100)</h5>
+                            <p className="text-sm text-zinc-400">Kill/Death ratio normalized to 100. A 2.0 KD ratio equals 100 points.</p>
+                          </div>
+                          <div className="bg-white/5 p-4 rounded">
+                            <h5 className="font-medium mb-2">IP Score (0-100)</h5>
+                            <p className="text-sm text-zinc-400">Based on average IP relative to role baseline (1300 for Tanks, 1200 for others).</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Role Weights */}
+                      <div>
+                        <h4 className="text-xl font-medium mb-3">Role-Specific Weights</h4>
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b border-zinc-800">
+                                <th className="text-left py-2">Role</th>
+                                <th className="text-center py-2">Attendance</th>
+                                <th className="text-center py-2">Performance</th>
+                                <th className="text-center py-2">KDA</th>
+                                <th className="text-center py-2">IP</th>
+                              </tr>
+                            </thead>
+                            <tbody className="text-zinc-400">
+                              <tr className="border-b border-zinc-800/50">
+                                <td className="py-2">DPS</td>
+                                <td className="text-center">40%</td>
+                                <td className="text-center">30%</td>
+                                <td className="text-center">15%</td>
+                                <td className="text-center">15%</td>
+                              </tr>
+                              <tr className="border-b border-zinc-800/50">
+                                <td className="py-2">Tank</td>
+                                <td className="text-center">45%</td>
+                                <td className="text-center">30%</td>
+                                <td className="text-center">5%</td>
+                                <td className="text-center">20%</td>
+                              </tr>
+                              <tr className="border-b border-zinc-800/50">
+                                <td className="py-2">Healer</td>
+                                <td className="text-center">45%</td>
+                                <td className="text-center">35%</td>
+                                <td className="text-center">5%</td>
+                                <td className="text-center">15%</td>
+                              </tr>
+                              <tr className="border-b border-zinc-800/50">
+                                <td className="py-2">Support</td>
+                                <td className="text-center">40%</td>
+                                <td className="text-center">35%</td>
+                                <td className="text-center">10%</td>
+                                <td className="text-center">15%</td>
+                              </tr>
+                              <tr>
+                                <td className="py-2">Utility</td>
+                                <td className="text-center">35%</td>
+                                <td className="text-center">30%</td>
+                                <td className="text-center">20%</td>
+                                <td className="text-center">15%</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Tier Thresholds */}
+                      <div>
+                        <h4 className="text-xl font-medium mb-3">Tier Thresholds</h4>
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                          <div className="bg-white/5 p-4 rounded">
+                            <h5 className="font-medium text-amber-400 mb-2">S Tier (85+ points)</h5>
+                            <p className="text-sm text-zinc-400">Exceptional performance across all metrics</p>
+                          </div>
+                          <div className="bg-white/5 p-4 rounded">
+                            <h5 className="font-medium text-zinc-200 mb-2">A Tier (70-84 points)</h5>
+                            <p className="text-sm text-zinc-400">Above average performance</p>
+                          </div>
+                          <div className="bg-white/5 p-4 rounded">
+                            <h5 className="font-medium text-zinc-400 mb-2">B Tier (50-69 points)</h5>
+                            <p className="text-sm text-zinc-400">Average performance</p>
+                          </div>
+                          <div className="bg-white/5 p-4 rounded">
+                            <h5 className="font-medium text-zinc-600 mb-2">C Tier (Below 50)</h5>
+                            <p className="text-sm text-zinc-400">Below average performance</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Additional Notes */}
+                      <div className="bg-white/5 p-4 rounded">
+                        <h4 className="text-xl font-medium mb-3">Additional Notes</h4>
+                        <ul className="list-disc list-inside space-y-2 text-zinc-400">
+                          <li>Performance is compared to similar guilds (±20% size) and the best performing guilds</li>
+                          <li>If no similar guild data exists, performance is compared to 80% of your guild&apos;s average</li>
+                          <li>If no best guild data exists, performance target is set to 120% of your guild&apos;s average</li>
+                          <li>Rankings are sorted by attendance first, then by performance score</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tracking Features */}
               <div id="tracking" className="space-y-6">
                 <h3 className="text-2xl font-semibold">Tracking Features</h3>
                 <ul className="list-disc list-inside space-y-3 text-zinc-400 text-lg">
@@ -775,8 +899,8 @@ export default function DocsPage() {
                 </div>
               </div>
 
-              {/* Reports */}
-              <div id="reports" className="space-y-8">
+              {/* Performance Reports */}
+              <div id="reports" className="space-y-6">
                 <h3 className="text-2xl font-semibold">Performance Reports</h3>
                 
                 {/* Guild Comparison */}

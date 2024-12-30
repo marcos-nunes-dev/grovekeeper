@@ -30,7 +30,14 @@ export function useProfileStats() {
         throw new Error('Failed to fetch statistics')
       }
       return response.json()
-    }
+    },
+    // Refetch every 5 seconds
+    refetchInterval: 5000,
+    // Keep refetching even when the window is not focused
+    refetchIntervalInBackground: true,
+    // Retry up to 3 times with exponential backoff
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * Math.pow(2, attemptIndex), 30000)
   })
 }
 

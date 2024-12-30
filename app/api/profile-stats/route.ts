@@ -1,23 +1,25 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { withPrisma } from '@/lib/prisma-helper'
 
 export async function GET() {
   try {
-    // Get or create the statistics record
-    const stats = await prisma.grovekeeperStatistics.upsert({
-      where: {
-        id: 'singleton'
-      },
-      create: {
-        id: 'singleton',
-        deathsAnalyzed: BigInt(0),
-        silverCalculated: BigInt(0),
-        playersTracked: BigInt(0),
-        totalPveFame: BigInt(0),
-        totalPvpFame: BigInt(0)
-      },
-      update: {} // No update needed for GET request
-    })
+    // Get or create the statistics record using withPrisma
+    const stats = await withPrisma(prisma => 
+      prisma.grovekeeperStatistics.upsert({
+        where: {
+          id: 'singleton'
+        },
+        create: {
+          id: 'singleton',
+          deathsAnalyzed: BigInt(0),
+          silverCalculated: BigInt(0),
+          playersTracked: BigInt(0),
+          totalPveFame: BigInt(0),
+          totalPvpFame: BigInt(0)
+        },
+        update: {} // No update needed for GET request
+      })
+    )
 
     return NextResponse.json({
       // Regear stats
@@ -62,37 +64,39 @@ export async function POST(request: Request) {
     const pve = BigInt(Math.max(0, Math.floor(pveFame)))
     const pvp = BigInt(Math.max(0, Math.floor(pvpFame)))
 
-    // Atomically increment all counters
-    const stats = await prisma.grovekeeperStatistics.upsert({
-      where: {
-        id: 'singleton'
-      },
-      create: {
-        id: 'singleton',
-        deathsAnalyzed: deaths,
-        silverCalculated: silverValue,
-        playersTracked: players,
-        totalPveFame: pve,
-        totalPvpFame: pvp
-      },
-      update: {
-        deathsAnalyzed: {
-          increment: deaths
+    // Use withPrisma for database operations
+    const stats = await withPrisma(prisma =>
+      prisma.grovekeeperStatistics.upsert({
+        where: {
+          id: 'singleton'
         },
-        silverCalculated: {
-          increment: silverValue
+        create: {
+          id: 'singleton',
+          deathsAnalyzed: deaths,
+          silverCalculated: silverValue,
+          playersTracked: players,
+          totalPveFame: pve,
+          totalPvpFame: pvp
         },
-        playersTracked: {
-          increment: players
-        },
-        totalPveFame: {
-          increment: pve
-        },
-        totalPvpFame: {
-          increment: pvp
+        update: {
+          deathsAnalyzed: {
+            increment: deaths
+          },
+          silverCalculated: {
+            increment: silverValue
+          },
+          playersTracked: {
+            increment: players
+          },
+          totalPveFame: {
+            increment: pve
+          },
+          totalPvpFame: {
+            increment: pvp
+          }
         }
-      }
-    })
+      })
+    )
 
     return NextResponse.json({
       // Regear stats

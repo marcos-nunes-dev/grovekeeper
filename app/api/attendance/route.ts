@@ -7,6 +7,7 @@ import {
   getSimilarGuildStats, 
   getBestGuildStats,
   calculatePerformanceScore,
+  type GuildStatisticsData
 } from '@/lib/services/guild-statistics'
 
 interface PlayerData {
@@ -188,6 +189,77 @@ async function fetchPlayerData(guildName: string, playerList: string[], minGP: n
   }
 }
 
+function calculateTier(
+  playerData: PlayerData,
+  mainClass: 'DPS' | 'Tank' | 'Healer' | 'Support' | 'Utility',
+  globalAverageAttendance: number,
+  stats: GuildStatisticsData,
+  similarGuild: GuildStatisticsData | null,
+  bestGuild: GuildStatisticsData | null
+): 'S' | 'A' | 'B' | 'C' {
+  // Calculate attendance score (0-100)
+  const attendanceScore = globalAverageAttendance > 0
+    ? Math.min((playerData.battleNumber / globalAverageAttendance) * 100, 100)
+    : playerData.battleNumber > 0 ? 70 : 0 // Fallback if no global average
+
+  // Calculate performance scores
+  const playerPerformance = calculatePerformanceScore(stats, mainClass)
+  const similarPerformance = similarGuild ? calculatePerformanceScore(similarGuild, mainClass) : playerPerformance * 0.8
+  const bestPerformance = bestGuild ? calculatePerformanceScore(bestGuild, mainClass) : playerPerformance * 1.2
+
+  // Calculate relative performance (0-100)
+  const performanceScore = Math.min(
+    ((playerPerformance - similarPerformance) / (bestPerformance - similarPerformance)) * 100,
+    100
+  )
+
+  // Calculate KDA score (0-100)
+  const kdaScore = Math.min((playerData.killDeathRatio / 2) * 100, 100)
+
+  // Calculate IP score (0-100)
+  const baseIP = mainClass === 'Tank' ? 1300 : 1200
+  const ipScore = Math.min((playerData.averageIP / baseIP) * 100, 100)
+
+  // Weight the scores based on role
+  let weights = {
+    attendance: 0.4,
+    performance: 0.3,
+    kda: 0.15,
+    ip: 0.15
+  }
+
+  // Adjust weights based on role
+  switch (mainClass) {
+    case 'Tank':
+      weights = { attendance: 0.45, performance: 0.3, kda: 0.05, ip: 0.2 }
+      break
+    case 'Healer':
+      weights = { attendance: 0.45, performance: 0.35, kda: 0.05, ip: 0.15 }
+      break
+    case 'Support':
+      weights = { attendance: 0.4, performance: 0.35, kda: 0.1, ip: 0.15 }
+      break
+    case 'Utility':
+      weights = { attendance: 0.35, performance: 0.3, kda: 0.2, ip: 0.15 }
+      break
+    // DPS weights remain default
+  }
+
+  // Calculate final score
+  const finalScore = (
+    attendanceScore * weights.attendance +
+    performanceScore * weights.performance +
+    kdaScore * weights.kda +
+    ipScore * weights.ip
+  )
+
+  // Determine tier based on final score
+  if (finalScore >= 85) return 'S'
+  if (finalScore >= 70) return 'A'
+  if (finalScore >= 50) return 'B'
+  return 'C'
+}
+
 export async function POST(request: Request) {
   try {
     const { guildName, playerList, minGP, guildInfo } = await request.json()
@@ -296,20 +368,15 @@ export async function POST(request: Request) {
             ? ((playerData.battleNumber / globalAverageAttendance) * 100) - 100
             : 0
 
-          // Determine tier based on multiple factors
-          let tier: 'S' | 'A' | 'B' | 'C'
-          const performanceScore = calculatePerformanceScore(stats, mainClass)
-          const similarScore = similarGuild ? calculatePerformanceScore(similarGuild, mainClass) : 0
-          
-          if (playerData.battleNumber >= (globalAverageAttendance * 1.5) && performanceScore > similarScore * 1.2) {
-            tier = 'S'
-          } else if (playerData.battleNumber >= globalAverageAttendance && performanceScore > similarScore) {
-            tier = 'A'
-          } else if (playerData.battleNumber >= (globalAverageAttendance * 0.5) && performanceScore > similarScore * 0.8) {
-            tier = 'B'
-          } else {
-            tier = 'C'
-          }
+          // Calculate tier using the new function
+          const tier = calculateTier(
+            playerData,
+            mainClass,
+            globalAverageAttendance,
+            stats,
+            similarGuild,
+            bestGuild
+          )
 
           return {
             rank: index + 1,
@@ -325,7 +392,7 @@ export async function POST(request: Request) {
             comparison,
             totalDamage: parseFloat(playerData.totalDamage) || 0,
             totalHealing: parseFloat(playerData.totalHealing) || 0,
-            performanceScore
+            performanceScore: calculatePerformanceScore(stats, mainClass)
           }
         }).sort((a, b) => {
           // Sort by attendance first, then by performance score

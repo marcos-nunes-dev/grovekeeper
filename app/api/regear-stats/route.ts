@@ -1,20 +1,22 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { withPrisma } from '@/lib/prisma-helper'
 
 export async function GET() {
   try {
-    // Get or create the statistics record
-    const stats = await prisma.grovekeeperStatistics.upsert({
-      where: {
-        id: 'singleton'
-      },
-      create: {
-        id: 'singleton',
-        deathsAnalyzed: BigInt(0),
-        silverCalculated: BigInt(0)
-      },
-      update: {}
-    })
+    // Get or create the statistics record using withPrisma
+    const stats = await withPrisma(prisma => 
+      prisma.grovekeeperStatistics.upsert({
+        where: {
+          id: 'singleton'
+        },
+        create: {
+          id: 'singleton',
+          deathsAnalyzed: BigInt(0),
+          silverCalculated: BigInt(0)
+        },
+        update: {}
+      })
+    )
 
     return NextResponse.json({
       deathsAnalyzed: Number(stats.deathsAnalyzed),
@@ -44,25 +46,27 @@ export async function POST(request: Request) {
     const silverValue = BigInt(Math.max(0, Math.floor(value)))
     const deaths = BigInt(Math.max(0, Math.floor(deathsCount)))
 
-    // Atomically increment both counters
-    const stats = await prisma.grovekeeperStatistics.upsert({
-      where: {
-        id: 'singleton'
-      },
-      create: {
-        id: 'singleton',
-        deathsAnalyzed: deaths,
-        silverCalculated: silverValue
-      },
-      update: {
-        deathsAnalyzed: {
-          increment: deaths
+    // Use withPrisma for database operations
+    const stats = await withPrisma(prisma =>
+      prisma.grovekeeperStatistics.upsert({
+        where: {
+          id: 'singleton'
         },
-        silverCalculated: {
-          increment: silverValue
+        create: {
+          id: 'singleton',
+          deathsAnalyzed: deaths,
+          silverCalculated: silverValue
+        },
+        update: {
+          deathsAnalyzed: {
+            increment: deaths
+          },
+          silverCalculated: {
+            increment: silverValue
+          }
         }
-      }
-    })
+      })
+    )
 
     return NextResponse.json({
       deathsAnalyzed: Number(stats.deathsAnalyzed),
