@@ -57,49 +57,69 @@ interface GuildComparison {
 }
 
 async function fetchPlayerData(guildName: string, playerList: string[], minGP: number): Promise<PlayerData[]> {
-  // Fetch player data from Albion Battles API
-  const response = await fetch(
-    `https://api.albionbattles.com/player?guildSearch=${encodeURIComponent(guildName)}&interval=28&minGP=${minGP}`,
-    { cache: 'no-store' }
-  )
+  // Add timeout to the fetch request
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch player data')
-  }
-
-  const data: PlayerData[] = await response.json()
-
-  // Create a map of player data for quick lookup
-  const playerDataMap = new Map(data.map(player => [player.name, player]))
-
-  // Process player data
-  return playerList.map(name => {
-    const playerData = playerDataMap.get(name)
-
-    if (!playerData) {
-      return {
-        name,
-        mainClass: 'Utility' as const,
-        battleNumber: 0,
-        totalKills: 0,
-        totalDeath: 0,
-        killDeathRatio: 0,
-        averageIP: 0,
-        totalKillContribution: '0',
-        totalDamage: '0',
-        totalHealing: '0',
-        totalFame: 0,
-        totalTank: '0',
-        totalHealer: '0',
-        totalSupport: '0',
-        totalMelee: '0',
-        totalRange: '0',
-        itemsUsed: []
+  try {
+    const response = await fetch(
+      `https://api.albionbattles.com/player?guildSearch=${encodeURIComponent(guildName)}&interval=28&minGP=${minGP}`,
+      { 
+        cache: 'no-store',
+        signal: controller.signal 
       }
+    )
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch player data: ${response.status} ${response.statusText}`)
     }
 
-    return playerData
-  })
+    const data: PlayerData[] = await response.json()
+
+    // Create a map of player data for quick lookup
+    const playerDataMap = new Map(data.map(player => [player.name, player]))
+
+    // Process player data
+    return playerList.map(name => {
+      const playerData = playerDataMap.get(name)
+
+      if (!playerData) {
+        return {
+          name,
+          mainClass: 'Utility' as const,
+          battleNumber: 0,
+          totalKills: 0,
+          totalDeath: 0,
+          killDeathRatio: 0,
+          averageIP: 0,
+          totalKillContribution: '0',
+          totalDamage: '0',
+          totalHealing: '0',
+          totalFame: 0,
+          totalTank: '0',
+          totalHealer: '0',
+          totalSupport: '0',
+          totalMelee: '0',
+          totalRange: '0',
+          itemsUsed: []
+        }
+      }
+
+      return playerData
+    })
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Request timed out while fetching player data')
+      }
+      throw error
+    }
+    throw new Error('Unknown error while fetching player data')
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 function determineMainClass(player: PlayerData): 'DPS' | 'Tank' | 'Healer' | 'Support' | 'Utility' {
@@ -151,24 +171,15 @@ export async function POST(request: Request) {
     }
 
     // Fetch player data from the API
-    const data = await fetchPlayerData(guildName, playerList, minGP)
+    let data: PlayerData[];
+    try {
+      data = await fetchPlayerData(guildName, playerList, minGP)
+    } catch (error) {
+      console.error('Error fetching player data:', error)
+      return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to fetch player data' }, { status: 500 })
+    }
 
-    // Use withPrisma to handle all database operations in a single transaction
-    const { globalAverageAttendance, similarGuild, bestGuild } = await withPrisma(async (prisma) => {
-      const [avgAttendance, similar, best] = await Promise.all([
-        getAverageGuildAttendance(prisma, minGP),
-        getSimilarGuildStats(prisma, guildInfo?.memberCount || playerList.length, minGP, guildName),
-        getBestGuildStats(prisma, minGP)
-      ])
-
-      return {
-        globalAverageAttendance: avgAttendance,
-        similarGuild: similar,
-        bestGuild: best
-      }
-    })
-
-    // Process player data
+    // Process player data first
     const playersByClass = data.reduce((acc, player) => {
       const mainClass = determineMainClass(player)
       if (!acc[mainClass]) acc[mainClass] = []
@@ -231,214 +242,166 @@ export async function POST(request: Request) {
     // Set to first day of the month
     const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    // Update guild statistics using withPrisma
-    await withPrisma(async (prisma) => {
-      const existingStats = await prisma.guildStatistics.findFirst({
-        where: {
-          guildName: {
-            mode: 'insensitive',
-            equals: guildName
-          },
-          minGP,
-          month: currentMonth,
-        },
-        orderBy: {
-          month: 'desc'
-        }
-      })
+    // Use a single withPrisma call for all database operations
+    try {
+      const dbResults = await withPrisma(async (prisma) => {
+        const [avgAttendance, similar, best, existingStats] = await Promise.allSettled([
+          getAverageGuildAttendance(prisma, minGP),
+          getSimilarGuildStats(prisma, guildInfo?.memberCount || playerList.length, minGP, guildName),
+          getBestGuildStats(prisma, minGP),
+          prisma.guildStatistics.findFirst({
+            where: {
+              guildName: {
+                mode: 'insensitive',
+                equals: guildName
+              },
+              minGP,
+              month: currentMonth,
+            },
+            orderBy: {
+              month: 'desc'
+            }
+          })
+        ])
 
-      if (existingStats) {
-        // If we have stats this month, check if they're from the same week
-        if (isSameWeek(existingStats.updatedAt, now)) {
-          // Skip update if it's the same week
-          return
-        }
+        // Handle the results
+        const globalAverageAttendance = avgAttendance.status === 'fulfilled' ? avgAttendance.value : 0
+        const similarGuild = similar.status === 'fulfilled' ? similar.value : null
+        const bestGuild = best.status === 'fulfilled' ? best.value : null
+        const currentStats = existingStats.status === 'fulfilled' ? existingStats.value : null
 
-        // Update stats if it's a different week in the same month
-        await prisma.guildStatistics.update({
-          where: {
-            id: existingStats.id
-          },
-          data: {
-            guildSize: stats.guildSize,
-            killFame: stats.killFame,
-            deathFame: stats.deathFame,
-            averageAttendance: stats.averageAttendance,
-            dpsKillDeathRatio: stats.dpsKillDeathRatio,
-            tankKillDeathRatio: stats.tankKillDeathRatio,
-            healerKillDeathRatio: stats.healerKillDeathRatio,
-            supportKillDeathRatio: stats.supportKillDeathRatio,
-            utilityKillDeathRatio: stats.utilityKillDeathRatio,
-            dpsAverageIP: stats.dpsAverageIP,
-            tankAverageIP: stats.tankAverageIP,
-            healerAverageIP: stats.healerAverageIP,
-            supportAverageIP: stats.supportAverageIP,
-            utilityAverageIP: stats.utilityAverageIP,
-            dpsTotalDamage: stats.dpsTotalDamage,
-            tankTotalDamage: stats.tankTotalDamage,
-            healerTotalDamage: stats.healerTotalDamage,
-            supportTotalDamage: stats.supportTotalDamage,
-            utilityTotalDamage: stats.utilityTotalDamage,
-            dpsTotalHealing: stats.dpsTotalHealing,
-            tankTotalHealing: stats.tankTotalHealing,
-            healerTotalHealing: stats.healerTotalHealing,
-            supportTotalHealing: stats.supportTotalHealing,
-            utilityTotalHealing: stats.utilityTotalHealing,
-            dpsKillContribution: stats.dpsKillContribution,
-            tankKillContribution: stats.tankKillContribution,
-            healerKillContribution: stats.healerKillContribution,
-            supportKillContribution: stats.supportKillContribution,
-            utilityKillContribution: stats.utilityKillContribution,
-            dpsTotalFame: stats.dpsTotalFame,
-            tankTotalFame: stats.tankTotalFame,
-            healerTotalFame: stats.healerTotalFame,
-            supportTotalFame: stats.supportTotalFame,
-            utilityTotalFame: stats.utilityTotalFame,
-            updatedAt: now
+        // Update or create guild statistics if needed
+        if (currentStats) {
+          if (!isSameWeek(currentStats.updatedAt, now)) {
+            await prisma.guildStatistics.update({
+              where: { id: currentStats.id },
+              data: { ...stats, updatedAt: now }
+            })
           }
-        })
-        return
-      }
+        } else {
+          await prisma.guildStatistics.create({
+            data: {
+              ...stats,
+              guildName,
+              minGP,
+              month: currentMonth,
+              updatedAt: now
+            }
+          })
+        }
 
-      // Create new stats if we don't have any for this month
-      await prisma.guildStatistics.create({
-        data: {
-          guildName,
-          month: currentMonth,
-          minGP,
-          guildSize: stats.guildSize,
-          killFame: stats.killFame,
-          deathFame: stats.deathFame,
-          averageAttendance: stats.averageAttendance,
-          dpsKillDeathRatio: stats.dpsKillDeathRatio,
-          tankKillDeathRatio: stats.tankKillDeathRatio,
-          healerKillDeathRatio: stats.healerKillDeathRatio,
-          supportKillDeathRatio: stats.supportKillDeathRatio,
-          utilityKillDeathRatio: stats.utilityKillDeathRatio,
-          dpsAverageIP: stats.dpsAverageIP,
-          tankAverageIP: stats.tankAverageIP,
-          healerAverageIP: stats.healerAverageIP,
-          supportAverageIP: stats.supportAverageIP,
-          utilityAverageIP: stats.utilityAverageIP,
-          dpsTotalDamage: stats.dpsTotalDamage,
-          tankTotalDamage: stats.tankTotalDamage,
-          healerTotalDamage: stats.healerTotalDamage,
-          supportTotalDamage: stats.supportTotalDamage,
-          utilityTotalDamage: stats.utilityTotalDamage,
-          dpsTotalHealing: stats.dpsTotalHealing,
-          tankTotalHealing: stats.tankTotalHealing,
-          healerTotalHealing: stats.healerTotalHealing,
-          supportTotalHealing: stats.supportTotalHealing,
-          utilityTotalHealing: stats.utilityTotalHealing,
-          dpsKillContribution: stats.dpsKillContribution,
-          tankKillContribution: stats.tankKillContribution,
-          healerKillContribution: stats.healerKillContribution,
-          supportKillContribution: stats.supportKillContribution,
-          utilityKillContribution: stats.utilityKillContribution,
-          dpsTotalFame: stats.dpsTotalFame,
-          tankTotalFame: stats.tankTotalFame,
-          healerTotalFame: stats.healerTotalFame,
-          supportTotalFame: stats.supportTotalFame,
-          utilityTotalFame: stats.utilityTotalFame,
-          updatedAt: now
+        // Process player data for response
+        const playerDataMap = new Map(data.map(player => [player.name, player]))
+
+        // Process player data with rankings and comparisons
+        const players = playerList.map((name, index) => {
+          const playerData = playerDataMap.get(name)
+
+          if (!playerData) {
+            return {
+              rank: index + 1,
+              name,
+              mainClass: 'Utility' as const,
+              tier: 'C' as const,
+              totalKills: 0,
+              totalDeaths: 0,
+              avgIP: 0,
+              totalAttendance: 0,
+              attendanceComparison: -100,
+              topWeapons: [],
+              comparison: null,
+              totalDamage: 0,
+              totalHealing: 0
+            }
+          }
+
+          const mainClass = determineMainClass(playerData)
+          const kd = playerData.totalKills / (playerData.totalDeath || 1)
+
+          // Get comparison data for the player's class
+          const comparison = {
+            current: {
+              kd,
+              guildName,
+              guildSize: guildInfo?.memberCount || playerList.length,
+              avgIP: playerData.averageIP,
+              performance: mainClass === 'Healer' 
+                ? parseFloat(playerData.totalHealing)
+                : parseFloat(playerData.totalDamage)
+            },
+            similar: similarGuild ? {
+              kd: getKdForClass(similarGuild, mainClass),
+              guildName: similarGuild.guildName,
+              guildSize: similarGuild.guildSize,
+              avgIP: getIPForClass(similarGuild, mainClass),
+              performance: getPerformanceForClass(similarGuild, mainClass)
+            } : null,
+            best: bestGuild ? {
+              kd: getKdForClass(bestGuild, mainClass),
+              guildName: bestGuild.guildName,
+              guildSize: bestGuild.guildSize,
+              avgIP: getIPForClass(bestGuild, mainClass),
+              performance: getPerformanceForClass(bestGuild, mainClass)
+            } : null
+          }
+
+          const attendancePercentage = globalAverageAttendance > 0 
+            ? ((playerData.battleNumber / globalAverageAttendance) * 100) - 100
+            : 0
+
+          // Determine tier based on global comparison
+          let tier: 'S' | 'A' | 'B' | 'C'
+          if (playerData.battleNumber >= (globalAverageAttendance * 1.5)) {
+            tier = 'S'
+          } else if (playerData.battleNumber >= globalAverageAttendance) {
+            tier = 'A'
+          } else if (playerData.battleNumber >= (globalAverageAttendance * 0.5)) {
+            tier = 'B'
+          } else {
+            tier = 'C'
+          }
+
+          return {
+            rank: index + 1,
+            name,
+            mainClass,
+            tier,
+            totalKills: playerData.totalKills,
+            totalDeaths: playerData.totalDeath,
+            avgIP: Math.round(playerData.averageIP),
+            totalAttendance: playerData.battleNumber,
+            attendanceComparison: Math.round(attendancePercentage),
+            topWeapons: Array.isArray(playerData.itemsUsed) ? playerData.itemsUsed.slice(0, 3) : [],
+            comparison,
+            totalDamage: parseFloat(playerData.totalDamage) || 0,
+            totalHealing: parseFloat(playerData.totalHealing) || 0
+          }
+        }).sort((a, b) => b.totalAttendance - a.totalAttendance)
+
+        // Update ranks after sorting
+        players.forEach((player, index) => {
+          player.rank = index + 1
+        })
+
+        return {
+          players,
+          globalAverageAttendance,
+          similarGuild,
+          bestGuild
         }
       })
-    })
 
-    // Process player data for response
-    const playerDataMap = new Map(data.map(player => [player.name, player]))
-
-    // Process player data
-    const players = playerList.map((name, index) => {
-      const playerData = playerDataMap.get(name)
-
-      if (!playerData) {
-        return {
-          rank: index + 1,
-          name,
-          mainClass: 'Utility' as const,
-          tier: 'C' as const,
-          totalKills: 0,
-          totalDeaths: 0,
-          avgIP: 0,
-          totalAttendance: 0,
-          attendanceComparison: -100,
-          topWeapons: [],
-          comparison: null,
-          totalDamage: 0,
-          totalHealing: 0
-        }
-      }
-
-      const mainClass = determineMainClass(playerData)
-      const kd = playerData.totalKills / (playerData.totalDeath || 1)
-
-      // Get comparison data for the player's class
-      const comparison = {
-        current: {
-          kd,
-          guildName,
-          guildSize: guildInfo?.memberCount || playerList.length,
-          avgIP: playerData.averageIP,
-          performance: mainClass === 'Healer' 
-            ? parseFloat(playerData.totalHealing)
-            : parseFloat(playerData.totalDamage)
-        },
-        similar: similarGuild ? {
-          kd: getKdForClass(similarGuild, mainClass),
-          guildName: similarGuild.guildName,
-          guildSize: similarGuild.guildSize,
-          avgIP: getIPForClass(similarGuild, mainClass),
-          performance: getPerformanceForClass(similarGuild, mainClass)
-        } : null,
-        best: bestGuild ? {
-          kd: getKdForClass(bestGuild, mainClass),
-          guildName: bestGuild.guildName,
-          guildSize: bestGuild.guildSize,
-          avgIP: getIPForClass(bestGuild, mainClass),
-          performance: getPerformanceForClass(bestGuild, mainClass)
-        } : null
-      }
-
-      const attendancePercentage = globalAverageAttendance > 0 
-        ? ((playerData.battleNumber / globalAverageAttendance) * 100) - 100
-        : 0
-
-      // Determine tier based on global comparison
-      let tier: 'S' | 'A' | 'B' | 'C'
-      if (playerData.battleNumber >= (globalAverageAttendance * 1.5)) {
-        tier = 'S'
-      } else if (playerData.battleNumber >= globalAverageAttendance) {
-        tier = 'A'
-      } else if (playerData.battleNumber >= (globalAverageAttendance * 0.5)) {
-        tier = 'B'
-      } else {
-        tier = 'C'
-      }
-
-      return {
-        rank: index + 1,
-        name,
-        mainClass,
-        tier,
-        totalKills: playerData.totalKills,
-        totalDeaths: playerData.totalDeath,
-        avgIP: Math.round(playerData.averageIP),
-        totalAttendance: playerData.battleNumber,
-        attendanceComparison: Math.round(attendancePercentage),
-        topWeapons: Array.isArray(playerData.itemsUsed) ? playerData.itemsUsed.slice(0, 3) : [],
-        comparison,
-        totalDamage: parseFloat(playerData.totalDamage) || 0,
-        totalHealing: parseFloat(playerData.totalHealing) || 0
-      }
-    }).sort((a, b) => b.totalAttendance - a.totalAttendance)
-
-    // Update ranks after sorting
-    players.forEach((player, index) => {
-      player.rank = index + 1
-    })
-
-    return NextResponse.json({ players })
+      return NextResponse.json(dbResults)
+    } catch (error) {
+      console.error('Database operation error:', error)
+      return NextResponse.json({ 
+        error: 'Database operation failed',
+        players: [],
+        globalAverageAttendance: 0,
+        similarGuild: null,
+        bestGuild: null
+      }, { status: 500 })
+    }
   } catch (error) {
     console.error('Error processing request:', error)
     return NextResponse.json({ error: 'Failed to process request' }, { status: 500 })
