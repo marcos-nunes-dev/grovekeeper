@@ -8,15 +8,12 @@ import AuthProvider from '@/components/auth-provider'
 import { Toaster } from 'sonner'
 import { ToastProvider } from '@/components/providers/toast-provider'
 import { Heart, Linkedin } from 'lucide-react'
-import { useApiWarmUp } from '@/lib/hooks/useApiWarmUp'
 
 export default function ClientLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  useApiWarmUp()
-
   return (
     <div className="min-h-screen flex flex-col bg-[#0A0E14] text-zinc-300 antialiased">
       <Providers>
@@ -55,9 +52,9 @@ export default function ClientLayout({
                 </div>
               </footer>
             </div>
-            <Toaster />
-            <ToastProvider />
           </TooltipProvider>
+          <Toaster />
+          <ToastProvider />
         </AuthProvider>
       </Providers>
     </div>
