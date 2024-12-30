@@ -255,7 +255,8 @@ export default function Attendance() {
           throw new Error("Failed to search guild");
         }
 
-        const guilds: GuildSearchResult[] = await response.json();
+        const data = await response.json();
+        const guilds: GuildSearchResult[] = data.guilds || [];
 
         // Cache the results
         searchCache.current.set(name.toLowerCase(), guilds);
@@ -331,7 +332,8 @@ export default function Attendance() {
             throw new Error("Failed to search guild");
           }
 
-          const guilds: GuildSearchResult[] = await response.json();
+          const data = await response.json();
+          const guilds: GuildSearchResult[] = data.guilds || [];
           setSuggestions(guilds);
 
           // Cache the results
