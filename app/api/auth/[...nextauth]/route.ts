@@ -34,18 +34,32 @@ const handler = NextAuth({
       return token
     },
     async redirect({ url, baseUrl }) {
-      // Allows relative callback URLs
+      // Always allow the homepage URL
+      if (url === baseUrl || url === `${baseUrl}/`) {
+        return baseUrl
+      }
+
+      // Handle callback URLs
+      if (url.includes('/api/auth/callback/')) {
+        return url
+      }
+
+      // Handle relative URLs
       if (url.startsWith('/')) {
         return `${baseUrl}${url}`
       }
-      // Allows callback URLs on the same origin
-      else if (new URL(url).origin === baseUrl) {
-        return url
+
+      // Allow URLs on the same origin
+      try {
+        const urlObj = new URL(url)
+        const baseUrlObj = new URL(baseUrl)
+        if (urlObj.origin === baseUrlObj.origin) {
+          return url
+        }
+      } catch (error) {
+        return baseUrl
       }
-      // Handle production callback URLs
-      else if (process.env.VERCEL_URL && url.startsWith(process.env.VERCEL_URL)) {
-        return url
-      }
+
       // Default to the home page
       return baseUrl
     },
