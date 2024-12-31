@@ -11,10 +11,10 @@ import { CustomListToggle } from "@/components/attendance/custom-list-toggle";
 import { ErrorDisplay } from "@/components/error-display";
 import { PlayerList } from "@/components/attendance/player-list";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { BattleType } from "@/lib/hooks/use-attendance-calculator";
 
-export default function Attendance() {
+function AttendanceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -111,5 +111,13 @@ export default function Attendance() {
         {result && <AttendanceResult result={result} />}
       </div>
     </div>
+  );
+}
+
+export default function Attendance() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AttendanceContent />
+    </Suspense>
   );
 }
