@@ -56,7 +56,7 @@ const handler = NextAuth({
         if (urlObj.origin === baseUrlObj.origin) {
           return url
         }
-      } catch (error) {
+      } catch {
         return baseUrl
       }
 
