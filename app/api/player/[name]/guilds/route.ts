@@ -42,9 +42,9 @@ async function updateGuildHistory(playerName: string) {
     const data = event.eventData as unknown as MurderLedgerEvent;
     let guildName = null;
 
-    if (data.killer.name.toLowerCase() === playerName) {
+    if (data.killer.name.toLowerCase() === playerName.toLowerCase()) {
       guildName = data.killer.guild_name;
-    } else if (data.victim.name.toLowerCase() === playerName) {
+    } else if (data.victim.name.toLowerCase() === playerName.toLowerCase()) {
       guildName = data.victim.guild_name;
     }
 
@@ -67,19 +67,19 @@ async function updateGuildHistory(playerName: string) {
     }
   });
 
-  // Update guild history in database
+  // Update guild history in database sequentially
   await withPrisma(async (prisma) => {
     const entries = Array.from(guildMap);
     for (const [guildName, data] of entries) {
       await prisma.guildHistory.upsert({
         where: {
           playerName_guildName: {
-            playerName,
+            playerName: playerName.toLowerCase(),
             guildName
           }
         },
         create: {
-          playerName,
+          playerName: playerName.toLowerCase(),
           guildName,
           firstSeen: data.firstSeen,
           lastSeen: data.lastSeen
@@ -103,20 +103,20 @@ export async function GET(
   const playerName = params.name.toLowerCase();
 
   try {
-    // First, get existing guild history from the database
-    const [guildHistory, playerCache] = await withPrisma(async (prisma) => {
-      const [history, cache] = await Promise.all([
-        prisma.guildHistory.findMany({
-          where: { playerName },
-          orderBy: { lastSeen: 'desc' }
-        }),
-        prisma.playerCache.findUnique({
-          where: { playerName },
-          select: { hasDeepSearch: true }
-        })
-      ]);
-      return [history, cache];
-    });
+    // Get data sequentially instead of in parallel
+    const guildHistory = await withPrisma(prisma =>
+      prisma.guildHistory.findMany({
+        where: { playerName },
+        orderBy: { lastSeen: 'desc' }
+      })
+    );
+
+    const playerCache = await withPrisma(prisma =>
+      prisma.playerCache.findUnique({
+        where: { playerName },
+        select: { hasDeepSearch: true }
+      })
+    );
 
     // Format and return existing data immediately if available
     if (guildHistory.length > 0) {

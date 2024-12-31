@@ -291,16 +291,10 @@ export async function POST(request: Request) {
     // Use a single withPrisma call for comparison data
     try {
       const dbResults = await withPrisma(async (prisma) => {
-        const [avgAttendance, similar, best] = await Promise.allSettled([
-          getAverageGuildAttendance(prisma, minGP),
-          getSimilarGuildStats(prisma, guildInfo?.memberCount || playerList.length, minGP, guildName),
-          getBestGuildStats(prisma, minGP, guildInfo?.memberCount || playerList.length) // Pass guild size for better comparison
-        ])
-
-        // Handle the results
-        const globalAverageAttendance = avgAttendance.status === 'fulfilled' ? avgAttendance.value : 0
-        const similarGuild = similar.status === 'fulfilled' ? similar.value : null
-        const bestGuild = best.status === 'fulfilled' ? best.value : null
+        // Run operations sequentially instead of in parallel
+        const globalAverageAttendance = await getAverageGuildAttendance(prisma, minGP)
+        const similarGuild = await getSimilarGuildStats(prisma, guildInfo?.memberCount || playerList.length, minGP, guildName)
+        const bestGuild = await getBestGuildStats(prisma, minGP, guildInfo?.memberCount || playerList.length)
 
         // Process player data for response
         const playerDataMap = new Map(data.map(player => [player.name, player]))

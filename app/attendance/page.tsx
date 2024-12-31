@@ -10,8 +10,14 @@ import { GuildInputs } from "@/components/attendance/guild-inputs";
 import { CustomListToggle } from "@/components/attendance/custom-list-toggle";
 import { ErrorDisplay } from "@/components/error-display";
 import { PlayerList } from "@/components/attendance/player-list";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { BattleType } from "@/lib/hooks/use-attendance-calculator";
 
 export default function Attendance() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
   const {
     guildId,
     battleType,
@@ -27,7 +33,32 @@ export default function Attendance() {
     setPlayerNames,
     handleCalculate,
     isCalculateDisabled,
+    initializeFromParams,
   } = useAttendanceCalculator();
+
+  // Initialize from URL parameters
+  useEffect(() => {
+    const guildIdParam = searchParams.get('guildId');
+    const battleTypeParam = searchParams.get('battleType') as BattleType;
+    
+    if (guildIdParam || battleTypeParam) {
+      initializeFromParams({
+        guildId: guildIdParam || '',
+        battleType: battleTypeParam || 'zvz',
+        useCustomList: false
+      });
+    }
+  }, [searchParams, initializeFromParams]);
+
+  // Update URL when parameters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (guildId) params.set('guildId', guildId);
+    if (battleType) params.set('battleType', battleType);
+    
+    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    router.replace(newUrl);
+  }, [guildId, battleType, router]);
 
   return (
     <div>

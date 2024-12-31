@@ -153,6 +153,7 @@ model Composition {
 
 model GuildStatistics {
   id                    Int      @id @default(autoincrement())
+  guildId              String   @default("")
   guildName            String
   month                DateTime
   minGP                Int
@@ -161,7 +162,7 @@ model GuildStatistics {
   deathFame            Float    @default(0)
   averageAttendance    Float    @default(0)
 
-  // Kill/Death ratios by class
+  // Kill/Death ratios
   dpsKillDeathRatio    Float    @default(0)
   tankKillDeathRatio   Float    @default(0)
   healerKillDeathRatio Float    @default(0)
@@ -208,6 +209,7 @@ model GuildStatistics {
 
   @@unique([guildName, month, minGP], name: "guildName_month_minGP")
   @@index([guildName])
+  @@index([guildId])
   @@index([month])
   @@index([minGP])
 }

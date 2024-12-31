@@ -4,6 +4,20 @@ import { prisma } from './prisma'
 const MAX_RETRIES = 3
 const INITIAL_RETRY_DELAY = 100 // 100ms
 
+let isConnected = false
+
+async function ensureConnection() {
+  if (!isConnected) {
+    try {
+      await prisma.$connect()
+      isConnected = true
+    } catch (error) {
+      console.error('Error connecting to Prisma:', error)
+      throw error
+    }
+  }
+}
+
 export async function withPrisma<T>(
   operation: (prisma: PrismaClient) => Promise<T>
 ): Promise<T> {
@@ -12,8 +26,7 @@ export async function withPrisma<T>(
 
   while (retryCount < MAX_RETRIES) {
     try {
-      // Ensure connection before operation
-      await prisma.$connect()
+      await ensureConnection()
       const result = await operation(prisma)
       return result
     } catch (error) {
@@ -31,29 +44,27 @@ export async function withPrisma<T>(
         const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount)
         await new Promise(resolve => setTimeout(resolve, delay))
 
-        // Disconnect and wait before retrying
-        try {
-          await prisma.$disconnect()
-        } catch (disconnectError) {
-          console.error('Error during disconnect:', disconnectError)
-        }
-
+        // Reset connection state and try to reconnect
+        isConnected = false
         retryCount++
         continue
       }
 
       // If it's not a retryable error, throw immediately
       throw error
-    } finally {
-      // Always try to clean up the connection
-      try {
-        await prisma.$disconnect()
-      } catch (disconnectError) {
-        console.error('Error disconnecting from Prisma:', disconnectError)
-      }
     }
   }
 
   // If we've exhausted all retries, throw the last error
   throw lastError || new Error('Max retries exceeded')
+}
+
+// Cleanup on process exit
+if (process.env.NODE_ENV !== 'production') {
+  process.on('beforeExit', async () => {
+    if (isConnected) {
+      await prisma.$disconnect()
+      isConnected = false
+    }
+  })
 }

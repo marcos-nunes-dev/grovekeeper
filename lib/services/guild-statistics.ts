@@ -22,6 +22,7 @@ interface PlayerData {
 }
 
 export interface GuildStatisticsData {
+  guildId: string
   guildName: string
   guildSize: number
   killFame: number
@@ -148,7 +149,7 @@ function determineMainClass(player: PlayerData): 'DPS' | 'Tank' | 'Healer' | 'Su
 export function calculateGuildStatistics(
   guildName: string,
   playerData: PlayerData[],
-  guildInfo: { memberCount: number; killFame: number; deathFame: number } | null,
+  guildInfo: { memberCount: number; killFame: number; deathFame: number; guildId: string } | null,
   minGP: number
 ): GuildStatisticsData {
   // Group players by their main class
@@ -160,6 +161,7 @@ export function calculateGuildStatistics(
   }, {} as Record<string, PlayerData[]>)
 
   return {
+    guildId: guildInfo?.guildId || '',
     guildName,
     guildSize: guildInfo?.memberCount || playerData.length,
     killFame: guildInfo?.killFame || 0,
@@ -329,7 +331,7 @@ export async function getSimilarGuildStats(
       { killFame: 'desc' },
       { averageAttendance: 'desc' }
     ]
-  })
+  }) as Promise<GuildStatisticsData | null>
 }
 
 export async function getBestGuildStats(
@@ -369,7 +371,7 @@ export async function getBestGuildStats(
       { averageAttendance: 'desc' },
       { guildSize: 'desc' }
     ]
-  })
+  }) as Promise<GuildStatisticsData | null>
 }
 
 // Helper to calculate performance score

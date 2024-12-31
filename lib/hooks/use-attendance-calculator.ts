@@ -58,14 +58,6 @@ export function useAttendanceCalculator() {
     [guildInfo, guildMembers.length, result]
   );
 
-  // Handle custom list toggle
-  const handleCustomListToggle = useCallback((checked: boolean) => {
-    setUseCustomList(checked);
-    // Clear results when toggling
-    setResult(null);
-    setError(null);
-  }, []);
-
   // Process player list from custom input or guild members
   const processedPlayerList = useMemo(() => {
     if (!useCustomList) return guildMembers;
@@ -210,6 +202,7 @@ export function useAttendanceCalculator() {
           playerList: playerList,
           minGP: battleType === "zvz" ? 20 : 10,
           guildInfo: {
+            guildId,
             killFame: guildStats.statistics.totalKillFame,
             deathFame: guildStats.statistics.totalDeathFame,
             memberCount: guildStats.statistics.memberCount,
@@ -312,6 +305,21 @@ export function useAttendanceCalculator() {
     };
   }, []);
 
+  // Initialize from URL parameters
+  const initializeFromParams = useCallback(({ 
+    guildId: paramGuildId, 
+    battleType: paramBattleType,
+    useCustomList: paramUseCustomList 
+  }: { 
+    guildId: string; 
+    battleType: BattleType;
+    useCustomList: boolean;
+  }) => {
+    setGuildId(paramGuildId);
+    setBattleType(paramBattleType);
+    setUseCustomList(paramUseCustomList);
+  }, []);
+
   return {
     guildId,
     battleType,
@@ -323,9 +331,10 @@ export function useAttendanceCalculator() {
     error,
     handleGuildIdChange,
     setBattleType,
-    setUseCustomList: handleCustomListToggle,
+    setUseCustomList,
     setPlayerNames,
     handleCalculate,
     isCalculateDisabled,
+    initializeFromParams,
   };
 } 

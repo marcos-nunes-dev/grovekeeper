@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { withPrisma } from "@/lib/prisma-helper";
 import { sendUpdate } from "@/lib/updates";
-import { prismaSSE } from '@/lib/prisma-sse'
 
 const ALBION_API = "https://gameinfo.albiononline.com/api/gameinfo";
 
@@ -60,15 +59,15 @@ async function findPlayer(playerName: string): Promise<string> {
       throw new Error("Player not found");
     }
 
-    // Update the cache with the correct player ID using a transaction
-    await prisma.$transaction(async (tx) => {
-      const cachedPlayer = await tx.playerCache.findUnique({
+    // Update the cache with the correct player ID using withPrisma
+    await withPrisma(async (prisma) => {
+      const cachedPlayer = await prisma.playerCache.findUnique({
         where: { playerName: playerName.toLowerCase() },
       });
 
       if (cachedPlayer && cachedPlayer.id !== player.Id) {
         // If the cached ID is different, update it
-        await tx.playerCache.update({
+        await prisma.playerCache.update({
           where: { playerName: playerName.toLowerCase() },
           data: { id: player.Id },
         });
@@ -126,9 +125,8 @@ async function formatPlayerData(data: AlbionPlayerResponse, region: string) {
 
 async function getCachedPlayer(playerName: string) {
   try {
-    // Create a new Prisma transaction for this operation
-    return await prisma.$transaction(async (tx) => {
-      return await tx.playerCache.findUnique({
+    return await withPrisma(async (prisma) => {
+      return await prisma.playerCache.findUnique({
         where: { playerName: playerName.toLowerCase() },
       });
     });
@@ -139,8 +137,8 @@ async function getCachedPlayer(playerName: string) {
 }
 
 async function updatePlayerCache(data: AlbionPlayerResponse) {
-  return await prismaSSE.$transaction(async (tx) => {
-    const updatedPlayer = await tx.playerCache.upsert({
+  return await withPrisma(async (prisma) => {
+    return await prisma.playerCache.upsert({
       where: { playerName: data.Name.toLowerCase() },
       create: {
         id: data.Id,
@@ -160,10 +158,8 @@ async function updatePlayerCache(data: AlbionPlayerResponse) {
         gatheringTotal: BigInt(Math.floor(data.LifetimeStatistics?.Gathering?.All?.Total || 0)),
         craftingTotal: BigInt(Math.floor(data.LifetimeStatistics?.Crafting?.Total || 0))
       }
-    })
-
-    return updatedPlayer
-  })
+    });
+  });
 }
 
 // Helper function to fetch fresh data from Albion API
