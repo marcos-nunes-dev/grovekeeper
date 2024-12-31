@@ -34,12 +34,16 @@ const handler = NextAuth({
       return token
     },
     async redirect({ url, baseUrl }) {
-      // If the url is relative, prepend the baseUrl
+      // Allows relative callback URLs
       if (url.startsWith('/')) {
         return `${baseUrl}${url}`
       }
-      // If the url is already absolute but on the same host, allow it
+      // Allows callback URLs on the same origin
       else if (new URL(url).origin === baseUrl) {
+        return url
+      }
+      // Handle production callback URLs
+      else if (process.env.VERCEL_URL && url.startsWith(process.env.VERCEL_URL)) {
         return url
       }
       // Default to the home page
