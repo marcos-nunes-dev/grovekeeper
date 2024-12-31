@@ -6,13 +6,23 @@ import { extractKillIds } from '@/lib/utils/url'
 export async function getKillboardData(killboardUrl: string): Promise<RegearResult> {
   // Extract kill ID from URL
   const killId = killboardUrl.split('/').pop()
-  if (!killId) throw new Error('Invalid killboard URL')
+  if (!killId || isNaN(Number(killId))) {
+    throw new Error('Invalid killboard URL format')
+  }
 
   // Fetch killboard data from our API route
   const response = await fetch(`/api/killboard/${killId}`)
-  if (!response.ok) throw new Error('Failed to fetch killboard data')
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Killboard not found. Please check if the URL is correct.')
+    }
+    throw new Error('Failed to fetch killboard data. Please try again later.')
+  }
   
   const data: KillboardResponse = await response.json()
+  if (!data.Victim) {
+    throw new Error('Invalid killboard data received')
+  }
 
   // Process equipped items
   const equippedItems = Object.entries(data.Victim.Equipment)

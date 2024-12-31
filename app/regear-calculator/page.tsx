@@ -7,7 +7,6 @@ import { Search, Frown, Users2, HelpCircle, ChevronDown, Sparkles } from 'lucide
 import RegearResult from '@/components/regear-result'
 import PageHero from '@/components/page-hero'
 import { useRegearCalculator } from '@/lib/hooks/useRegearCalculator'
-import { AnimatedCounter } from '@/components/ui/animated-counter'
 import { isValidKillboardUrl, extractKillIds } from '@/lib/utils/url'
 import {
   DropdownMenu,
@@ -49,7 +48,6 @@ export default function RegearCalculator() {
     result,
     loading,
     error,
-    stats,
     setUrl,
     calculate,
     calculateGroup,
@@ -99,16 +97,6 @@ export default function RegearCalculator() {
       <PageHero 
         title="Regear Calculator"
         subtitle="Calculate the cost of regearing your lost equipment"
-        stats={[
-          { 
-            value: <AnimatedCounter value={stats?.deathsAnalyzed || 0} showZeroAsQuestionMarks={false} />, 
-            label: 'Deaths Analyzed' 
-          },
-          { 
-            value: <AnimatedCounter value={stats?.silverCalculated || 0} showZeroAsQuestionMarks={false} />, 
-            label: 'Silver Calculated' 
-          }
-        ]}
       >
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-zinc-800 p-6 space-y-4">
           <div className="space-y-2">

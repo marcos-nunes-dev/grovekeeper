@@ -8,12 +8,9 @@ import { ArrowRight, Calculator, Users, UserCircle, AlertCircle, Heart, Search, 
 import { motion } from 'framer-motion'
 import { Input } from "@/components/ui/input"
 import { formatTimeAgo, formatFame } from '@/lib/utils/format'
-import { useProfileStats } from '@/lib/hooks/useProfileStats'
 import { AnimatedCounter } from '@/components/ui/animated-counter'
 
 export default function Home() {
-  const { data: stats } = useProfileStats()
-
   return (
     <div className="min-h-screen bg-[#0A0E14] flex flex-col -mt-4">
       {/* Disclaimer Banner */}
@@ -357,19 +354,19 @@ export default function Home() {
               transition={{ delay: 0.7 }}
             >
               <StatCard 
-                number={<AnimatedCounter value={stats?.playersTracked || 0} />} 
+                number={<AnimatedCounter value={0} />} 
                 label="Players Tracked" 
               />
               <StatCard 
-                number={<AnimatedCounter value={stats?.silverCalculated || 0} />} 
+                number={<AnimatedCounter value={0} />} 
                 label="Silver Calculated" 
               />
               <StatCard 
-                number={<AnimatedCounter value={stats?.deathsAnalyzed || 0} />} 
+                number={<AnimatedCounter value={ 0} />} 
                 label="Deaths Analyzed" 
               />
               <StatCard 
-                number={<AnimatedCounter value={stats?.totalPvpFame || 0} />} 
+                number={<AnimatedCounter value={0} />} 
                 label="Total PvP Fame" 
               />
             </motion.div>

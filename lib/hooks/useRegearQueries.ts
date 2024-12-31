@@ -1,12 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import type { RegearResult } from '@/lib/types/regear'
 import { KillboardError } from '@/lib/utils/errors'
 import { getKillboardData } from '@/lib/services/regear'
 
-interface Stats {
-  deathsAnalyzed: number
-  silverCalculated: number
-}
 
 // Equivalent items for price conversion
 const EQUIVALENT_ITEMS = [
@@ -23,26 +19,7 @@ interface EquivalentPrices {
   UNIQUE_GVGTOKEN_GENERIC: number
 }
 
-// Fetch statistics
-export function useRegearStats() {
-  return useQuery<Stats>({
-    queryKey: ['regearStats'],
-    queryFn: async () => {
-      const response = await fetch('/api/regear-stats')
-      if (!response.ok) {
-        throw new Error('Failed to fetch statistics')
-      }
-      return response.json()
-    },
-    // Refetch every 5 seconds
-    refetchInterval: 5000,
-    // Keep refetching even when the window is not focused
-    refetchIntervalInBackground: true,
-    // Retry up to 3 times with exponential backoff
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * Math.pow(2, attemptIndex), 30000)
-  })
-}
+
 
 // Fetch equivalent item prices
 export function useEquivalentPrices() {
@@ -108,65 +85,3 @@ export function useKillboardData(killboardUrl: string | null) {
     gcTime: 30 * 60 * 1000
   })
 }
-
-interface StatsUpdate {
-  value: number
-  deathsCount: number
-}
-
-// Update statistics mutation
-export function useUpdateStats() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async ({ value, deathsCount }: StatsUpdate) => {
-      try {
-        const response = await fetch('/api/regear-stats', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value, deathsCount })
-        })
-        if (!response.ok) {
-          throw new Error('Failed to update statistics')
-        }
-        const data = await response.json()
-        return data as Stats
-      } catch (error) {
-        console.error('Error updating stats:', error)
-        throw error
-      }
-    },
-    onMutate: async ({ value, deathsCount }: StatsUpdate) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['regearStats'] })
-
-      // Snapshot the previous value
-      const previousStats = queryClient.getQueryData<Stats>(['regearStats'])
-
-      // Optimistically update to the new value
-      if (previousStats) {
-        const newStats = {
-          deathsAnalyzed: previousStats.deathsAnalyzed + deathsCount,
-          silverCalculated: previousStats.silverCalculated + value
-        }
-        queryClient.setQueryData<Stats>(['regearStats'], newStats)
-      }
-
-      return { previousStats }
-    },
-    onError: (
-      err: Error,
-      variables: StatsUpdate,
-      context: { previousStats: Stats | undefined } | undefined
-    ) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousStats) {
-        queryClient.setQueryData(['regearStats'], context.previousStats)
-      }
-    },
-    onSettled: () => {
-      // Always refetch after error or success to ensure we're in sync
-      queryClient.invalidateQueries({ queryKey: ['regearStats'] })
-    }
-  })
-} 

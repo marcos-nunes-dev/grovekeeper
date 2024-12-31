@@ -8,20 +8,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model GrovekeeperStatistics {
-  id               String   @id @default("singleton")
-  // Regear stats
-  deathsAnalyzed   BigInt   @default(0)
-  silverCalculated BigInt   @default(0)
-  // Profile stats
-  playersTracked   BigInt   @default(0)
-  totalPveFame     BigInt   @default(0)
-  totalPvpFame     BigInt   @default(0)
-  updatedAt        DateTime @updatedAt
-
-  @@map("statistics")
-}
-
 model GuildHistory {
   id         String   @id @default(cuid())
   playerName String

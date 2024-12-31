@@ -139,10 +139,6 @@ async function getCachedPlayer(playerName: string) {
 }
 
 async function updatePlayerCache(data: AlbionPlayerResponse) {
-  const isNewPlayer = !(await prismaSSE.playerCache.findUnique({
-    where: { playerName: data.Name.toLowerCase() }
-  }))
-
   return await prismaSSE.$transaction(async (tx) => {
     const updatedPlayer = await tx.playerCache.upsert({
       where: { playerName: data.Name.toLowerCase() },
@@ -165,32 +161,6 @@ async function updatePlayerCache(data: AlbionPlayerResponse) {
         craftingTotal: BigInt(Math.floor(data.LifetimeStatistics?.Crafting?.Total || 0))
       }
     })
-
-    // Only update global stats if this is a new player
-    if (isNewPlayer) {
-      await tx.grovekeeperStatistics.upsert({
-        where: { id: 'singleton' },
-        create: {
-          id: 'singleton',
-          playersTracked: BigInt(1),
-          totalPvpFame: BigInt(Math.floor(data.KillFame)),
-          totalPveFame: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0)),
-          deathsAnalyzed: BigInt(0),
-          silverCalculated: BigInt(0)
-        },
-        update: {
-          playersTracked: {
-            increment: BigInt(1)
-          },
-          totalPvpFame: {
-            increment: BigInt(Math.floor(data.KillFame))
-          },
-          totalPveFame: {
-            increment: BigInt(Math.floor(data.LifetimeStatistics?.PvE?.Total || 0))
-          }
-        }
-      })
-    }
 
     return updatedPlayer
   })

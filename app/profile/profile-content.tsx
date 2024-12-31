@@ -16,8 +16,6 @@ import {
 } from "@/components/ui/select"
 import { useEventSource } from '@/lib/hooks/useEventSource'
 import { MurderLedgerEvent } from '@/types/albion'
-import { useProfileStats } from '@/lib/hooks/useProfileStats'
-import { AnimatedCounter } from '@/components/ui/animated-counter'
 import type { ApiResponse } from '@/lib/types/api'
 import { isErrorResponse } from '@/lib/types/api'
 
@@ -72,8 +70,6 @@ export default function ProfileContent() {
   const [isCheckingNewEvents, setIsCheckingNewEvents] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
-  // Add profile stats
-  const { data: stats } = useProfileStats()
 
   // Use our custom hook for EventSource
   useEventSource(
@@ -192,29 +188,6 @@ export default function ProfileContent() {
       <PageHero 
         title="Player Profile"
         subtitle="View detailed statistics and information about Albion Online players"
-        stats={[
-          { 
-            value: <AnimatedCounter 
-              value={stats?.playersTracked || 0} 
-              showZeroAsQuestionMarks={false} 
-            />, 
-            label: 'Players Tracked' 
-          },
-          { 
-            value: <AnimatedCounter 
-              value={stats?.totalPvpFame || 0} 
-              showZeroAsQuestionMarks={false} 
-            />, 
-            label: 'Total PvP Fame' 
-          },
-          { 
-            value: <AnimatedCounter 
-              value={stats?.totalPveFame || 0} 
-              showZeroAsQuestionMarks={false} 
-            />, 
-            label: 'Total PvE Fame' 
-          }
-        ]}
       >
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-zinc-800 p-6 space-y-4">
           <div className="space-y-2">

@@ -34,10 +34,6 @@ export default function Attendance() {
       <PageHero
         title="Guild Attendance Tracker"
         subtitle="Track and analyze your guild members' participation and performance"
-        stats={[
-          { value: "1,000+", label: "Guilds Tracked" },
-          { value: "50K+", label: "Players Analyzed" },
-        ]}
       >
         <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-zinc-800 p-6 space-y-4">
           <div className="space-y-2">
