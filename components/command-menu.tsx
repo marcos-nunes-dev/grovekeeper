@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { CommandDialog, CommandGroup, CommandItem, CommandEmpty, CommandInput, CommandList, CommandShortcut, CommandSeparator } from './ui/command'
 
 
-type ShortcutKey = 'k' | 'a' | 'r' | 'b' | '/' | 'p'
+type ShortcutKey = 'k' | 'a' | 'r' | '/' | 'p'
 
 export function CommandMenu() {
   const router = useRouter()
@@ -18,7 +18,6 @@ export function CommandMenu() {
       k: () => setOpen((open) => !open),
       a: () => router.push('/attendance'),
       r: () => router.push('/regear-calculator'),
-      b: () => router.push('/builds'),
       p: () => router.push('/profile'),
       '/': () => router.push('/docs'),
     }

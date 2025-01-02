@@ -60,8 +60,6 @@ model User {
   discordId     String?      @unique
   accounts      Account[]
   sessions      Session[]
-  builds        Build[]
-  compositions  Composition[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
@@ -99,56 +97,6 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
-}
-
-model Build {
-  id           String       @id @default(cuid())
-  name         String
-  class        String?
-  content      String?
-  difficulty   String?
-  costTier     String?
-  instructions String?
-  status       String      // 'published' | 'draft' | 'stale'
-  equipment    Json        // Store equipment as JSON
-  spells       Json        // Store spells as JSON
-  swaps        Json        // Store swaps as JSON
-  authorId     String      // Foreign key to User
-  author       User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  classSection ClassSection? @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
-  classSectionId String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  @@index([authorId])
-  @@index([classSectionId])
-}
-
-model ClassSection {
-  id            String   @id @default(cuid())
-  name          String
-  builds        Build[]
-  composition   Composition @relation(fields: [compositionId], references: [id], onDelete: Cascade)
-  compositionId String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([compositionId])
-}
-
-model Composition {
-  id            String   @id @default(cuid())
-  name          String
-  contentType   String?
-  description   String?
-  tags          String[] // Store tags as array
-  classSections ClassSection[]
-  authorId      String   // Foreign key to User
-  author        User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([authorId])
 }
 
 model GuildStatistics {
