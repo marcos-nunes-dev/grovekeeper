@@ -77,7 +77,7 @@ export default function RegearCalculator() {
       return {
         isValid: killIds.length > 0,
         message: killIds.length > 0 
-          ? `Calculate Regear (${killIds.length} URLs found)`
+          ? `Calculate Regear (${killIds.length} ${killIds.length === 1 ? 'URL' : 'URLs'} found)`
           : 'No valid killboard URLs found'
       }
     }

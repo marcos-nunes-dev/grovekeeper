@@ -1,12 +1,12 @@
 import { RegearResult, GroupRegearResult, KillboardResponse, PricesResponse } from '@/lib/types/regear'
 import { formatPrice, isPriceReliable } from '@/lib/utils/price'
 import { getFriendlyItemName } from '@/lib/utils/item-names'
-import { extractKillIds } from '@/lib/utils/url'
+import { extractKillIds, extractKillId } from '@/lib/utils/url'
 
 export async function getKillboardData(killboardUrl: string): Promise<RegearResult> {
   // Extract kill ID from URL
-  const killId = killboardUrl.split('/').pop()
-  if (!killId || isNaN(Number(killId))) {
+  const killId = extractKillId(killboardUrl)
+  if (!killId) {
     throw new Error('Invalid killboard URL format')
   }
 

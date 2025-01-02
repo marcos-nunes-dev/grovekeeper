@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import type { RegearResult, RegearItem } from '@/lib/types/regear'
 import { HelpCircle, ChevronDown } from 'lucide-react'
@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { PriceHistoryChart } from './price-history-chart'
-import { useEquivalentPrices, type PriceEquivalent } from '@/lib/hooks/useRegearQueries'
+import type { PriceEquivalent } from '@/lib/hooks/useRegearQueries'
 import Image from 'next/image'
 
 interface RegearResultProps {
@@ -66,6 +66,32 @@ function PriceDisplay({ value, formattedValue, isReliable, priceHistory, count }
   priceHistory?: Array<{ timestamp: string; price: number }>
   count: number
 }) {
+  // Calculate average from chart when there's high variance, excluding outliers
+  const chartAverage = useMemo(() => {
+    if (!priceHistory?.length) return null
+    if (isReliable) return null
+
+    // Sort prices to calculate quartiles
+    const prices = priceHistory.map(point => point.price).sort((a, b) => a - b)
+    const q1Index = Math.floor(prices.length * 0.25)
+    const q3Index = Math.floor(prices.length * 0.75)
+    const q1 = prices[q1Index]
+    const q3 = prices[q3Index]
+    const iqr = q3 - q1
+    const lowerBound = q1 - 1.5 * iqr
+    const upperBound = q3 + 1.5 * iqr
+
+    // Filter out outliers and calculate average
+    const validPrices = prices.filter(price => price >= lowerBound && price <= upperBound)
+    if (!validPrices.length) return null
+
+    const avg = validPrices.reduce((sum, price) => sum + price, 0) / validPrices.length
+    return {
+      value: avg,
+      formatted: formatPrice(avg)
+    }
+  }, [isReliable, priceHistory])
+
   if (value === 0) {
     return (
       <div className="flex items-center gap-1">
@@ -75,12 +101,16 @@ function PriceDisplay({ value, formattedValue, isReliable, priceHistory, count }
     )
   }
 
+  const displayValue = chartAverage ? chartAverage.value : value
+  const displayFormatted = chartAverage ? chartAverage.formatted : formattedValue
+  const totalValue = displayValue * count
+
   return (
     <div className="flex items-center gap-1">
       <span className="text-zinc-300">
-        {formattedValue} silver
+        {formatPrice(totalValue)} silver
         {count > 1 && (
-          <span className="text-sm text-zinc-500 ml-1">each</span>
+          <span className="text-sm text-zinc-500 ml-1">({displayFormatted} each)</span>
         )}
       </span>
       {!isReliable && priceHistory && (
@@ -98,7 +128,7 @@ function PriceDisplay({ value, formattedValue, isReliable, priceHistory, count }
             <div className="space-y-2">
               <div className="space-y-1 mb-4">
                 <p className="font-medium text-zinc-200">Price Variation Warning</p>
-                <p className="text-sm text-zinc-400">This price shows high variation or low market activity in the last 24 hours. Check the graph below for price trends.</p>
+                <p className="text-sm text-zinc-400">This price shows high variation or low market activity in the last 24 hours. Using average price from historical data (excluding outliers).</p>
               </div>
               <PriceHistoryChart data={priceHistory} />
             </div>
@@ -228,7 +258,31 @@ export default function RegearResult({
   const [internalCustomCalculation, setInternalCustomCalculation] = useState(false)
   const [internalIgnoredItems, setInternalIgnoredItems] = useState<Set<string>>(new Set())
   const [priceDisplay, setPriceDisplay] = useState<'silver' | PriceEquivalent>('silver')
-  const { data: equivalentPrices } = useEquivalentPrices()
+  const [equivalentPrices, setEquivalentPrices] = useState<Record<PriceEquivalent, number>>({} as Record<PriceEquivalent, number>)
+
+  // Fetch all equivalent prices when component mounts
+  useEffect(() => {
+    const fetchAllEquivalentPrices = async () => {
+      try {
+        const items = ['T4_SKILLBOOK_STANDARD', 'TREASURE_DECORATIVE_RARITY1', 'UNIQUE_GVGTOKEN_GENERIC']
+        const response = await fetch(`/api/prices/v2?items=${items.map(item => `${item}:1`).join(',')}`)
+        if (!response.ok) throw new Error('Failed to fetch equivalent prices')
+        const data = await response.json()
+        
+        // Extract average prices
+        const prices = items.reduce((acc, item) => {
+          acc[item as PriceEquivalent] = data[item]?.[1]?.avg_price ?? 0
+          return acc
+        }, {} as Record<PriceEquivalent, number>)
+        
+        setEquivalentPrices(prices)
+      } catch (error) {
+        console.error('Error fetching equivalent prices:', error)
+      }
+    }
+
+    fetchAllEquivalentPrices()
+  }, []) // Only fetch on mount
 
   // Use external or internal state based on what's provided
   const customCalculation = externalCustomCalculation ?? internalCustomCalculation
@@ -269,7 +323,7 @@ export default function RegearResult({
 
   // Calculate equivalent values
   const displayValue = useMemo(() => {
-    if (priceDisplay === 'silver' || !equivalentPrices) return calculatedTotal
+    if (priceDisplay === 'silver') return calculatedTotal
 
     const equivalentPrice = equivalentPrices[priceDisplay]
     if (!equivalentPrice) return calculatedTotal

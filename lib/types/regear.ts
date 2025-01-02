@@ -12,6 +12,8 @@ export interface RegearItem {
   }>
 }
 
+export type EquipmentSlot = 'weapon' | 'offhand' | 'head' | 'armor' | 'shoes' | 'cape' | 'mount' | 'bag' | 'potion' | 'food'
+
 export interface RegearResult {
   equipped: RegearItem[]
   bag: RegearItem[]
@@ -108,17 +110,6 @@ export interface RegearFilters {
   enableMinIP: boolean
 }
 
-export type EquipmentSlot = 
-  | 'weapon'
-  | 'offhand'
-  | 'head'
-  | 'armor'
-  | 'shoes'
-  | 'cape'
-  | 'mount'
-  | 'potion'
-  | 'food'
-
 export const EQUIPMENT_SLOTS: Record<EquipmentSlot, string> = {
   weapon: 'Weapon',
   offhand: 'Off-hand',
@@ -127,6 +118,7 @@ export const EQUIPMENT_SLOTS: Record<EquipmentSlot, string> = {
   shoes: 'Shoes',
   cape: 'Cape',
   mount: 'Mount',
+  bag: 'Bag',
   potion: 'Potion',
   food: 'Food'
 }
